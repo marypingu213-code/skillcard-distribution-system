@@ -319,10 +319,12 @@
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // ★ 版面修復：擷取上方圖片實際高度 ★
+          let headerHeight = 150;
           if (headImg) {
             let hRatio = canvas.width / headImg.width;
-            let drawHeight = headImg.height * hRatio;
-            ctx.drawImage(headImg, 0, 0, canvas.width, drawHeight);
+            headerHeight = headImg.height * hRatio;
+            ctx.drawImage(headImg, 0, 0, canvas.width, headerHeight);
           } else {
             ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 0, canvas.width, 150);
             ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
@@ -350,7 +352,7 @@
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          ctx.fillText(dateText, 45, footerY - 8);
+          ctx.fillText(dateText, 40, footerY - 10);
 
           ctx.textAlign = "center";
           let fontSize = 45;
@@ -363,10 +365,10 @@
             maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
           }
 
-          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓文字永遠貼近下方圖片 ★
+          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓技能文字在卡片留白處垂直置中 ★
           let lineHeight = fontSize + 15;
-          let startY = footerY - 50 - ((lines.length - 1) * lineHeight); // 鎖定最後一行距離圖片頂部 50px
-          if (startY < 200) startY = 200; // 防呆，避免文字太多頂到天花板
+          let centerY = headerHeight + (footerY - headerHeight) / 2; // 算出可繪圖區域的正中央
+          let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
 
           lines.forEach((line, index) => {
             ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
@@ -400,10 +402,12 @@
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // ★ 版面修復：擷取上方圖片實際高度 ★
+          let headerHeight = 150;
           if (headImg) {
             let hRatio = canvas.width / headImg.width;
-            let drawHeight = headImg.height * hRatio;
-            ctx.drawImage(headImg, 0, 0, canvas.width, drawHeight);
+            headerHeight = headImg.height * hRatio;
+            ctx.drawImage(headImg, 0, 0, canvas.width, headerHeight);
           } else {
             ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 0, canvas.width, 150);
             ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
@@ -431,7 +435,7 @@
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          ctx.fillText(dateText, 45, footerY - 8);
+          ctx.fillText(dateText, 40, footerY - 10);
 
           ctx.textAlign = "center";
           let fontSize = 45;
@@ -444,10 +448,10 @@
             maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
           }
 
-          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓文字永遠貼近下方圖片 ★
+          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓技能文字在卡片留白處垂直置中 ★
           let lineHeight = fontSize + 15;
-          let startY = footerY - 50 - ((lines.length - 1) * lineHeight); // 鎖定最後一行距離圖片頂部 50px
-          if (startY < 200) startY = 200; // 防呆限制
+          let centerY = headerHeight + (footerY - headerHeight) / 2;
+          let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
 
           lines.forEach((line, index) => {
             ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
