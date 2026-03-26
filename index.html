@@ -172,6 +172,7 @@
       const [fontName, setFontName] = useState('BiauKai');
       const [skillsText, setSkillsText] = useState('(食)我會自己洗碗\n(衣)我會摺衣服\n我會準時上學');
       const [dateText, setDateText] = useState('1140415 Anping劍獅');
+      const [dateOffsetY, setDateOffsetY] = useState(0); // ★ 新增：日期垂直位置微調狀態
       const [stagedCards, setStagedCards] = useState([]);
 
       const [categoryImages, setCategoryImages] = useState({});
@@ -348,11 +349,11 @@
             footerY = 600;
           }
 
-          // ★ 日期修復：完美緊貼在下方圖片的左上方 ★
+          // ★ 日期修復：完美緊貼在下方圖片的左上方，並加入手動微調(dateOffsetY) ★
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          ctx.fillText(dateText, 40, footerY - 10);
+          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY, 10));
 
           ctx.textAlign = "center";
           let fontSize = 45;
@@ -376,7 +377,7 @@
         };
 
         drawPreview();
-      }, [headImgUrl, footImgUrl, fontName, skillsText, dateText]);
+      }, [headImgUrl, footImgUrl, fontName, skillsText, dateText, dateOffsetY]); // ★ 加入 dateOffsetY 依賴，讓拉桿能即時預覽
 
       // ★ 生成卡片邏輯 (包含對齊修復) ★
       const generateCards = async () => {
@@ -431,11 +432,11 @@
             footerY = 600;
           }
 
-          // ★ 日期修復：完美緊貼在下方圖片的左上方 ★
+          // ★ 日期修復：完美緊貼在下方圖片的左上方，並加入手動微調(dateOffsetY) ★
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          ctx.fillText(dateText, 40, footerY - 10);
+          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY, 10));
 
           ctx.textAlign = "center";
           let fontSize = 45;
@@ -693,6 +694,20 @@
                       onChange={(e) => setDateText(e.target.value)}
                       className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-400"
                     />
+
+                    {/* ★ 新增：日期垂直微調拉桿 ★ */}
+                    <div className="mt-3 flex items-center gap-2 bg-white/50 p-2 rounded border border-blue-100">
+                      <label className="text-xs font-bold text-blue-700 whitespace-nowrap" title="若日期沒有對齊圖片，可使用此拉桿上下移動"><i className="fa-solid fa-arrows-up-down"></i> 日期上下微調:</label>
+                      <input 
+                        type="range" 
+                        min="-100" 
+                        max="100" 
+                        value={dateOffsetY} 
+                        onChange={(e) => setDateOffsetY(e.target.value)}
+                        className="flex-1 cursor-pointer accent-blue-600"
+                      />
+                      <span className="text-xs text-blue-600 font-mono w-8 text-right">{dateOffsetY > 0 ? `+${dateOffsetY}` : dateOffsetY}</span>
+                    </div>
                   </div>
 
                   {/* 區塊 4: 即時預覽 */}
