@@ -309,7 +309,9 @@
 
           const parsedSegments = parseSkillsText(skillsText);
           const firstSegment = parsedSegments[0] || { category: '預設', text: '我會...' };
-          const lines = firstSegment.text.split(' ').filter(l => l !== '');
+          
+          // ★ 修正 1：支援按下 Enter(換行符號) 或 空白鍵 來進行文字斷行 ★
+          const lines = firstSegment.text.split(/\s+/).filter(l => l !== '');
 
           const headImg = await loadImageData(headImgUrl);
           const footImg = await loadImageData(footImgUrl);
@@ -361,9 +363,13 @@
             maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
           }
 
-          let startY = 350; 
+          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓文字永遠貼近下方圖片 ★
+          let lineHeight = fontSize + 15;
+          let startY = footerY - 50 - ((lines.length - 1) * lineHeight); // 鎖定最後一行距離圖片頂部 50px
+          if (startY < 200) startY = 200; // 防呆，避免文字太多頂到天花板
+
           lines.forEach((line, index) => {
-            ctx.fillText(line, canvas.width / 2, startY + (index * (fontSize + 15)));
+            ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
           });
         };
 
@@ -388,7 +394,8 @@
         const newCards = [];
 
         for (let seg of parsedSegments) {
-          const lines = seg.text.split(' ').filter(l => l !== '');
+          // ★ 修正 1：支援按下 Enter(換行符號) 或 空白鍵 來進行文字斷行 ★
+          const lines = seg.text.split(/\s+/).filter(l => l !== '');
           
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -437,9 +444,13 @@
             maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
           }
 
-          let startY = 350; 
+          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓文字永遠貼近下方圖片 ★
+          let lineHeight = fontSize + 15;
+          let startY = footerY - 50 - ((lines.length - 1) * lineHeight); // 鎖定最後一行距離圖片頂部 50px
+          if (startY < 200) startY = 200; // 防呆限制
+
           lines.forEach((line, index) => {
-            ctx.fillText(line, canvas.width / 2, startY + (index * (fontSize + 15)));
+            ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
           });
 
           newCards.push({
@@ -667,9 +678,9 @@
                       value={skillsText} 
                       onChange={(e) => setSkillsText(e.target.value)}
                       className="w-full p-2 border rounded-md h-24 text-sm resize-none focus:ring-2 focus:ring-blue-400"
-                      placeholder="輸入「(食)我...」可產生該類別卡片。空白鍵可換行。"
+                      placeholder="輸入「(食)我...」可產生該類別卡片。按下 Enter 鍵可換行。"
                     ></textarea>
-                    <p className="text-[11px] text-blue-600 mt-1 mb-3">範例：(食)我會洗碗 (衣)我會折衣服</p>
+                    <p className="text-[11px] text-blue-600 mt-1 mb-3">範例：<br/>(食)我會洗碗<br/>(衣)我會折衣服</p>
 
                     <label className="block text-xs font-bold mb-1 text-blue-700">底部日期與單位 (將成為背包名稱)</label>
                     <input 
