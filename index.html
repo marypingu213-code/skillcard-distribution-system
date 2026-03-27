@@ -172,7 +172,7 @@
       const [fontName, setFontName] = useState('BiauKai');
       const [skillsText, setSkillsText] = useState('(食)我會\n自己洗碗\n(衣)我會\n摺衣服');
       const [dateText, setDateText] = useState('1140415 Anping劍獅');
-      const [dateOffsetY, setDateOffsetY] = useState(0);
+      const [dateOffsetY, setDateOffsetY] = useState(0); // 日期上下偏移量
       const [stagedCards, setStagedCards] = useState([]);
 
       const [categoryImages, setCategoryImages] = useState({});
@@ -301,7 +301,7 @@
         return segments;
       };
 
-      // ★ 即時預覽 (包含對齊修復) ★
+      // ★ 即時預覽 ★
       useEffect(() => {
         const drawPreview = async () => {
           const canvas = previewCanvasRef.current;
@@ -349,7 +349,8 @@
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          // 加入 dateOffsetY 的偏移計算 (將其轉為整數)
+          
+          // 加入 dateOffsetY 的偏移計算
           ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
 
           ctx.textAlign = "center";
@@ -375,7 +376,7 @@
         drawPreview();
       }, [headImgUrl, footImgUrl, fontName, skillsText, dateText, dateOffsetY]);
 
-      // ★ 生成卡片邏輯 (包含對齊修復) ★
+      // ★ 生成卡片邏輯 ★
       const generateCards = async () => {
         if (!skillsText.trim()) {
           showMessage('請輸入技能文字');
@@ -460,7 +461,7 @@
         showMessage(`✅ 成功生成 ${newCards.length} 張卡片！`);
       };
 
-      // ★ Word 匯出邏輯全面修復 (支援精確版面格式) ★
+      // ★ Word 匯出邏輯 (橫式 A4，5x2 網格，精準 5.4cm x 9cm) ★
       const exportToWord = () => {
         if (stagedCards.length === 0) {
           alert('⚠️ 暫存區目前是空的！\n\n請先在左側輸入好「技能文字」後，點擊左下方的【產生技能卡】按鈕，接著就能下載列印囉！');
@@ -468,35 +469,36 @@
         }
 
         let rowsHtml = '';
-        // 嚴格執行 5欄x4列 (共20張為一頁) 的分頁邏輯
-        for (let p = 0; p < stagedCards.length; p += 20) {
-          rowsHtml += '<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 27cm;">';
-          for (let r = 0; r < 4; r++) {
+        // 嚴格執行 5欄x2列 (共10張為一頁) 的分頁邏輯
+        for (let p = 0; p < stagedCards.length; p += 10) {
+          rowsHtml += '<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 27cm;">';
+          for (let r = 0; r < 2; r++) {
             rowsHtml += '<tr style="height: 9cm;">';
             for (let c = 0; c < 5; c++) {
               const idx = p + r * 5 + c;
               const cardObj = stagedCards[idx];
               if (cardObj) {
                 const cardSrc = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
-                // 強制加入 Word 相容的寬高參數與邊框
-                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt solid #999999; text-align: center; vertical-align: middle;">
-                               <img src="${cardSrc}" width="204" height="340" style="width: 5.4cm; height: 9cm; object-fit: contain;" />
+                // 強制加入 Word 相容的寬高參數與淺灰色虛線邊框 (方便裁剪)
+                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt dashed #cccccc; text-align: center; vertical-align: middle;">
+                               <img src="${cardSrc}" style="width: 5.4cm; height: 9cm; object-fit: contain;" />
                              </td>`;
               } else {
                 // 空白格子補滿版面
-                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt solid #999999;"></td>`;
+                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt dashed #cccccc;"></td>`;
               }
             }
             rowsHtml += '</tr>';
           }
           rowsHtml += '</table>';
-          // 超過一頁(20張)時，強迫 Word 進行換頁
-          if (p + 20 < stagedCards.length) {
+          
+          // 超過一頁(10張)時，強迫 Word 進行換頁
+          if (p + 10 < stagedCards.length) {
             rowsHtml += '<br style="page-break-before: always; mso-special-character: line-break;" clear="all" />';
           }
         }
 
-        // 加入完整的 Office Word HTML Header 與邊界設定 (上下左右 1.27cm)
+        // 加入完整的 Office Word HTML Header 與橫式(Landscape)邊界設定
         const htmlContent = `
           <html xmlns:v="urn:schemas-microsoft-com:vml"
                 xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -509,7 +511,7 @@
               @page WordSection1 {
                 size: 29.7cm 21.0cm; /* Word 横向 A4 */
                 mso-page-orientation: landscape;
-                margin: 1.27cm 1.27cm 1.27cm 1.27cm;
+                margin: 1.27cm 1.27cm 1.27cm 1.27cm; /* 上下左右 1.27公分 */
                 mso-header-margin: 35.4pt;
                 mso-footer-margin: 35.4pt;
                 mso-paper-source: 0;
@@ -529,10 +531,10 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = '技能卡批量列印_A4.doc';
+        link.download = '技能卡批量列印_A4橫向.doc';
         link.click();
         URL.revokeObjectURL(url);
-        showMessage('✅ Word 檔案已開始下載');
+        showMessage('✅ Word 檔案已開始下載 (A4橫式)');
       };
 
       const addStudent = async () => {
@@ -708,32 +710,37 @@
                     />
                   </div>
 
-                  {/* 區塊 4: ★ 垂直拉桿與即時預覽 ★ */}
+                  {/* 區塊 4: ★ 即時預覽與直向微調控制 (移至預覽圖左側) ★ */}
                   <div className="border border-slate-300 rounded-lg bg-slate-200 p-4 flex flex-col items-center shadow-inner relative">
                     <h3 className="text-xs font-bold text-slate-500 mb-4 w-full text-center"><i className="fa-solid fa-eye"></i> 3. 即時預覽與微調</h3>
                     
                     <div className="flex items-center justify-center gap-6 w-full">
                       
-                      {/* ★ 直覺式垂直微調拉桿 ★ */}
-                      <div className="flex flex-col items-center justify-center bg-white/70 py-4 px-2 rounded-full shadow-sm border border-slate-300" title="若日期沒有對齊圖片，可上下拖曳微調位置">
-                        <span className="text-[11px] font-bold text-slate-500 mb-2">上</span>
+                      {/* ★ 全新直向微調面板 (按鈕式) ★ */}
+                      <div className="flex flex-col items-center justify-center bg-white/90 p-2 rounded-xl shadow-sm border border-slate-300" title="若日期沒有對齊圖片，可點擊箭頭微調位置">
+                        <span className="text-[11px] font-bold text-blue-800 mb-2 whitespace-nowrap">日期微調</span>
                         
-                        <div className="relative h-[160px] w-6 flex items-center justify-center my-2">
-                          <input 
-                            type="range" 
-                            min="-100" 
-                            max="100" 
-                            value={-dateOffsetY} 
-                            onChange={(e) => setDateOffsetY(-parseInt(e.target.value, 10))}
-                            className="absolute w-[160px] h-1.5 accent-blue-600 cursor-ns-resize origin-center -rotate-90 bg-slate-300 rounded-lg appearance-none"
-                            style={{ outline: "none" }}
-                          />
-                        </div>
-
-                        <span className="text-[11px] font-bold text-slate-500 mt-2">下</span>
-                        <div className="mt-3 text-[10px] font-bold text-blue-700 text-center leading-tight">
-                          日期微調<br/><span className="text-blue-600 font-mono text-xs">{dateOffsetY > 0 ? `+${dateOffsetY}` : dateOffsetY}</span>
-                        </div>
+                        <button 
+                          onClick={() => setDateOffsetY(o => o - 2)} 
+                          className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded mb-1 transition-colors border border-slate-200 shadow-sm"
+                        >
+                          <i className="fa-solid fa-caret-up text-lg"></i>
+                        </button>
+                        
+                        <span className="text-xs font-mono font-bold text-slate-700 w-8 text-center my-1 select-none">
+                          {dateOffsetY > 0 ? `+${dateOffsetY}` : dateOffsetY}
+                        </span>
+                        
+                        <button 
+                          onClick={() => setDateOffsetY(o => o + 2)} 
+                          className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded mt-1 transition-colors border border-slate-200 shadow-sm"
+                        >
+                          <i className="fa-solid fa-caret-down text-lg"></i>
+                        </button>
+                        
+                        <button onClick={() => setDateOffsetY(0)} className="text-[9px] text-slate-400 hover:text-red-500 mt-2 underline decoration-slate-300">
+                          重設
+                        </button>
                       </div>
 
                       {/* Canvas 畫布 */}
@@ -818,7 +825,7 @@
                       onClick={exportToWord}
                       className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-slate-700 transition-colors shadow-sm"
                     >
-                      <i className="fa-solid fa-download"></i> 下載 A4 列印檔
+                      <i className="fa-solid fa-download"></i> 下載 A4 橫式列印檔
                     </button>
                   </div>
 
