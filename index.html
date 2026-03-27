@@ -170,9 +170,9 @@
       const [headImgUrl, setHeadImgUrl] = useState(null);
       const [footImgUrl, setFootImgUrl] = useState(null);
       const [fontName, setFontName] = useState('BiauKai');
-      const [skillsText, setSkillsText] = useState('(食)我會自己洗碗\n(衣)我會摺衣服\n我會準時上學');
+      const [skillsText, setSkillsText] = useState('(食)我會\n自己洗碗\n(衣)我會\n摺衣服');
       const [dateText, setDateText] = useState('1140415 Anping劍獅');
-      const [dateOffsetY, setDateOffsetY] = useState(0); // ★ 新增：日期垂直位置微調狀態
+      const [dateOffsetY, setDateOffsetY] = useState(0);
       const [stagedCards, setStagedCards] = useState([]);
 
       const [categoryImages, setCategoryImages] = useState({});
@@ -311,7 +311,6 @@
           const parsedSegments = parseSkillsText(skillsText);
           const firstSegment = parsedSegments[0] || { category: '預設', text: '我會...' };
           
-          // ★ 修正 1：支援按下 Enter(換行符號) 或 空白鍵 來進行文字斷行 ★
           const lines = firstSegment.text.split(/\s+/).filter(l => l !== '');
 
           const headImg = await loadImageData(headImgUrl);
@@ -320,7 +319,6 @@
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // ★ 版面修復：擷取上方圖片實際高度 ★
           let headerHeight = 150;
           if (headImg) {
             let hRatio = canvas.width / headImg.width;
@@ -332,16 +330,15 @@
             ctx.fillText("無上方圖片", canvas.width/2, 80);
           }
 
-          // ★ 版面修復：下方圖片全寬置中，追蹤高度 ★
           let footerY = 600; 
           if (footImg) {
-            let targetWidth = canvas.width - 40; // 左右各留20px邊距
+            let targetWidth = canvas.width - 40; 
             let ratio = targetWidth / footImg.width;
             let drawHeight = footImg.height * ratio;
             let x = 20;
-            let y = canvas.height - drawHeight - 20; // 距離底部 20px
+            let y = canvas.height - drawHeight - 20; 
             ctx.drawImage(footImg, x, y, targetWidth, drawHeight);
-            footerY = y; // 記錄圖形最高點的 Y 座標
+            footerY = y; 
           } else {
             ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 600, canvas.width, 200);
             ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
@@ -349,11 +346,11 @@
             footerY = 600;
           }
 
-          // ★ 日期修復：完美緊貼在下方圖片的左上方，並加入手動微調(dateOffsetY) ★
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY, 10));
+          // 加入 dateOffsetY 的偏移計算 (將其轉為整數)
+          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
 
           ctx.textAlign = "center";
           let fontSize = 45;
@@ -366,9 +363,8 @@
             maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
           }
 
-          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓技能文字在卡片留白處垂直置中 ★
           let lineHeight = fontSize + 15;
-          let centerY = headerHeight + (footerY - headerHeight) / 2; // 算出可繪圖區域的正中央
+          let centerY = headerHeight + (footerY - headerHeight) / 2; 
           let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
 
           lines.forEach((line, index) => {
@@ -377,7 +373,7 @@
         };
 
         drawPreview();
-      }, [headImgUrl, footImgUrl, fontName, skillsText, dateText, dateOffsetY]); // ★ 加入 dateOffsetY 依賴，讓拉桿能即時預覽
+      }, [headImgUrl, footImgUrl, fontName, skillsText, dateText, dateOffsetY]);
 
       // ★ 生成卡片邏輯 (包含對齊修復) ★
       const generateCards = async () => {
@@ -397,13 +393,11 @@
         const newCards = [];
 
         for (let seg of parsedSegments) {
-          // ★ 修正 1：支援按下 Enter(換行符號) 或 空白鍵 來進行文字斷行 ★
           const lines = seg.text.split(/\s+/).filter(l => l !== '');
           
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // ★ 版面修復：擷取上方圖片實際高度 ★
           let headerHeight = 150;
           if (headImg) {
             let hRatio = canvas.width / headImg.width;
@@ -415,7 +409,6 @@
             ctx.fillText("無上方圖片", canvas.width/2, 80);
           }
 
-          // ★ 版面修復：下方圖片全寬置中，追蹤高度 ★
           let footerY = 600; 
           if (footImg) {
             let targetWidth = canvas.width - 40; 
@@ -432,11 +425,10 @@
             footerY = 600;
           }
 
-          // ★ 日期修復：完美緊貼在下方圖片的左上方，並加入手動微調(dateOffsetY) ★
           ctx.fillStyle = "#000000";
           ctx.textAlign = "left";
           ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY, 10));
+          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
 
           ctx.textAlign = "center";
           let fontSize = 45;
@@ -449,7 +441,6 @@
             maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
           }
 
-          // ★ 修正 2：文字位置修改：動態計算 Y 座標，讓技能文字在卡片留白處垂直置中 ★
           let lineHeight = fontSize + 15;
           let centerY = headerHeight + (footerY - headerHeight) / 2;
           let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
@@ -469,41 +460,67 @@
         showMessage(`✅ 成功生成 ${newCards.length} 張卡片！`);
       };
 
+      // ★ Word 匯出邏輯全面修復 (支援精確版面格式) ★
       const exportToWord = () => {
-        // ★ 下載防呆提示：明確告知如何產生卡片 ★
         if (stagedCards.length === 0) {
-          alert('⚠️ 暫存區目前是空的！\n\n請先在左側輸入好「技能文字」後，點擊左下方的【產生技能卡】按鈕，卡片就會跑到右邊的暫存區，接著就能下載列印囉！');
+          alert('⚠️ 暫存區目前是空的！\n\n請先在左側輸入好「技能文字」後，點擊左下方的【產生技能卡】按鈕，接著就能下載列印囉！');
           return;
         }
 
         let rowsHtml = '';
-        for (let i = 0; i < stagedCards.length; i += 5) {
-          rowsHtml += '<tr>';
-          for (let j = 0; j < 5; j++) {
-            const cardObj = stagedCards[i + j];
-            const cardSrc = cardObj ? (typeof cardObj === 'string' ? cardObj : cardObj.dataUrl) : null;
-            if (cardSrc) {
-              rowsHtml += `<td><img src="${cardSrc}" alt="card" /></td>`;
-            } else {
-              rowsHtml += `<td></td>`;
+        // 嚴格執行 5欄x4列 (共20張為一頁) 的分頁邏輯
+        for (let p = 0; p < stagedCards.length; p += 20) {
+          rowsHtml += '<table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 27cm;">';
+          for (let r = 0; r < 4; r++) {
+            rowsHtml += '<tr style="height: 9cm;">';
+            for (let c = 0; c < 5; c++) {
+              const idx = p + r * 5 + c;
+              const cardObj = stagedCards[idx];
+              if (cardObj) {
+                const cardSrc = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
+                // 強制加入 Word 相容的寬高參數與邊框
+                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt solid #999999; text-align: center; vertical-align: middle;">
+                               <img src="${cardSrc}" width="204" height="340" style="width: 5.4cm; height: 9cm; object-fit: contain;" />
+                             </td>`;
+              } else {
+                // 空白格子補滿版面
+                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt solid #999999;"></td>`;
+              }
             }
+            rowsHtml += '</tr>';
           }
-          rowsHtml += '</tr>';
+          rowsHtml += '</table>';
+          // 超過一頁(20張)時，強迫 Word 進行換頁
+          if (p + 20 < stagedCards.length) {
+            rowsHtml += '<br style="page-break-before: always; mso-special-character: line-break;" clear="all" />';
+          }
         }
 
+        // 加入完整的 Office Word HTML Header 與邊界設定 (上下左右 1.27cm)
         const htmlContent = `
-          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+          <html xmlns:v="urn:schemas-microsoft-com:vml"
+                xmlns:o="urn:schemas-microsoft-com:office:office"
+                xmlns:w="urn:schemas-microsoft-com:office:word"
+                xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
+                xmlns="http://www.w3.org/TR/REC-html40">
           <head>
             <meta charset="utf-8">
             <style>
-              @page { size: 21cm 29.7cm; margin: 1.27cm; }
-              table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-              td { width: 5.4cm; height: 9cm; border: 1px dashed #cccccc; vertical-align: middle; text-align: center; padding: 2px; }
-              img { max-width: 100%; max-height: 100%; object-fit: contain; }
+              @page WordSection1 {
+                size: 29.7cm 21.0cm; /* Word 横向 A4 */
+                mso-page-orientation: landscape;
+                margin: 1.27cm 1.27cm 1.27cm 1.27cm;
+                mso-header-margin: 35.4pt;
+                mso-footer-margin: 35.4pt;
+                mso-paper-source: 0;
+              }
+              div.WordSection1 { page: WordSection1; }
             </style>
           </head>
           <body>
-            <table>${rowsHtml}</table>
+            <div class="WordSection1">
+              ${rowsHtml}
+            </div>
           </body>
           </html>
         `;
@@ -616,17 +633,15 @@
           {activeTab === 'teacher' && (
             <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-6 mt-6 pb-12 px-4">
               
-              {/* ★ 左側：卡片生成器 (全面改版解決消失問題) ★ */}
+              {/* ★ 左側：卡片生成器 ★ */}
               <section 
-                className="w-full lg:w-[35%] bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col relative"
-                style={{ height: "calc(100vh - 120px)", minHeight: "650px" }}
+                className="w-full lg:w-[38%] bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col relative"
+                style={{ height: "calc(100vh - 120px)", minHeight: "750px" }}
               >
-                {/* 固定頭部 */}
                 <h2 className="text-lg font-bold p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2 shrink-0 rounded-t-xl text-blue-800">
                   <i className="fa-solid fa-pen-to-square text-blue-500"></i> 卡片編輯區
                 </h2>
                 
-                {/* 可獨立滾動的中間區域 */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-slate-50/50">
                   
                   {/* 區塊 1: 版面素材上傳 */}
@@ -641,7 +656,7 @@
                       <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setFootImgUrl)} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold mb-1 text-slate-600">自訂華康字型檔 (可選 .ttf/.woff)</label>
+                      <label className="block text-xs font-bold mb-1 text-slate-600">自訂華康字型檔 (可選)</label>
                       <input type="file" accept=".ttf,.woff,.woff2,.otf" onChange={handleFontUpload} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
                     </div>
                   </div>
@@ -652,10 +667,9 @@
                       onClick={() => setShowSettings(!showSettings)}
                       className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 p-3 text-sm font-bold flex items-center justify-between transition-colors"
                     >
-                      <span className="flex items-center gap-2"><i className="fa-solid fa-gear"></i> 設定卡片專屬背面圖案 (選填)</span>
+                      <span className="flex items-center gap-2"><i className="fa-solid fa-gear"></i> 設定學生背包背面圖案 (選填)</span>
                       <i className={`fa-solid fa-chevron-${showSettings ? 'up' : 'down'}`}></i>
                     </button>
-                    
                     {showSettings && (
                       <div className="p-3 grid grid-cols-4 gap-2 bg-indigo-50/20">
                         {categoriesList.map(cat => (
@@ -669,7 +683,6 @@
                             <div className="absolute inset-0 bg-black/60 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">上傳</div>
                           </label>
                         ))}
-                        <div className="col-span-4 text-[11px] text-indigo-500 mt-1">💡 點擊格子可上傳您專屬的(食衣住行等)圖片。未上傳則使用系統精美預設圖。</div>
                       </div>
                     )}
                   </div>
@@ -685,45 +698,57 @@
                       className="w-full p-2 border rounded-md h-24 text-sm resize-none focus:ring-2 focus:ring-blue-400"
                       placeholder="輸入「(食)我...」可產生該類別卡片。按下 Enter 鍵可換行。"
                     ></textarea>
-                    <p className="text-[11px] text-blue-600 mt-1 mb-3">範例：<br/>(食)我會洗碗<br/>(衣)我會折衣服</p>
 
-                    <label className="block text-xs font-bold mb-1 text-blue-700">底部日期與單位 (將成為背包名稱)</label>
+                    <label className="block text-xs font-bold mb-1 mt-3 text-blue-700">底部日期與單位 (將成為背包名稱)</label>
                     <input 
                       type="text" 
                       value={dateText} 
                       onChange={(e) => setDateText(e.target.value)}
                       className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-400"
                     />
-
-                    {/* ★ 新增：日期垂直微調拉桿 ★ */}
-                    <div className="mt-3 flex items-center gap-2 bg-white/50 p-2 rounded border border-blue-100">
-                      <label className="text-xs font-bold text-blue-700 whitespace-nowrap" title="若日期沒有對齊圖片，可使用此拉桿上下移動"><i className="fa-solid fa-arrows-up-down"></i> 日期上下微調:</label>
-                      <input 
-                        type="range" 
-                        min="-100" 
-                        max="100" 
-                        value={dateOffsetY} 
-                        onChange={(e) => setDateOffsetY(e.target.value)}
-                        className="flex-1 cursor-pointer accent-blue-600"
-                      />
-                      <span className="text-xs text-blue-600 font-mono w-8 text-right">{dateOffsetY > 0 ? `+${dateOffsetY}` : dateOffsetY}</span>
-                    </div>
                   </div>
 
-                  {/* 區塊 4: 即時預覽 */}
-                  <div className="border border-slate-300 rounded-lg bg-slate-200 p-3 flex flex-col items-center shadow-inner relative">
-                    <h3 className="text-xs font-bold text-slate-500 mb-2 w-full text-center"><i className="fa-solid fa-eye"></i> 即時預覽</h3>
-                    <canvas 
-                      ref={previewCanvasRef} 
-                      width="450" 
-                      height="800" 
-                      className="w-full max-w-[180px] h-auto border border-slate-300 shadow-md rounded bg-white"
-                    />
+                  {/* 區塊 4: ★ 垂直拉桿與即時預覽 ★ */}
+                  <div className="border border-slate-300 rounded-lg bg-slate-200 p-4 flex flex-col items-center shadow-inner relative">
+                    <h3 className="text-xs font-bold text-slate-500 mb-4 w-full text-center"><i className="fa-solid fa-eye"></i> 3. 即時預覽與微調</h3>
+                    
+                    <div className="flex items-center justify-center gap-6 w-full">
+                      
+                      {/* ★ 直覺式垂直微調拉桿 ★ */}
+                      <div className="flex flex-col items-center justify-center bg-white/70 py-4 px-2 rounded-full shadow-sm border border-slate-300" title="若日期沒有對齊圖片，可上下拖曳微調位置">
+                        <span className="text-[11px] font-bold text-slate-500 mb-2">上</span>
+                        
+                        <div className="relative h-[160px] w-6 flex items-center justify-center my-2">
+                          <input 
+                            type="range" 
+                            min="-100" 
+                            max="100" 
+                            value={-dateOffsetY} 
+                            onChange={(e) => setDateOffsetY(-parseInt(e.target.value, 10))}
+                            className="absolute w-[160px] h-1.5 accent-blue-600 cursor-ns-resize origin-center -rotate-90 bg-slate-300 rounded-lg appearance-none"
+                            style={{ outline: "none" }}
+                          />
+                        </div>
+
+                        <span className="text-[11px] font-bold text-slate-500 mt-2">下</span>
+                        <div className="mt-3 text-[10px] font-bold text-blue-700 text-center leading-tight">
+                          日期微調<br/><span className="text-blue-600 font-mono text-xs">{dateOffsetY > 0 ? `+${dateOffsetY}` : dateOffsetY}</span>
+                        </div>
+                      </div>
+
+                      {/* Canvas 畫布 */}
+                      <canvas 
+                        ref={previewCanvasRef} 
+                        width="450" 
+                        height="800" 
+                        className="w-full max-w-[190px] h-auto border border-slate-300 shadow-md rounded bg-white"
+                      />
+                    </div>
                   </div>
 
                 </div>
 
-                {/* ★ 永久固定的底部按鈕 ★ */}
+                {/* 永久固定的底部按鈕 */}
                 <div className="p-4 border-t border-slate-200 bg-white shrink-0 rounded-b-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
                   <button 
                     onClick={generateCards}
@@ -735,7 +760,7 @@
               </section>
 
               {/* 右側：學生名單與派發區 */}
-              <section className="w-full lg:w-[65%] flex flex-col gap-6">
+              <section className="w-full lg:w-[62%] flex flex-col gap-6">
                 
                 {/* 學生資料庫 */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
