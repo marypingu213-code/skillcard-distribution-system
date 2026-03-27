@@ -461,7 +461,7 @@
         showMessage(`✅ 成功生成 ${newCards.length} 張卡片！`);
       };
 
-      // ★ Word 匯出邏輯 (橫式 A4，5x2 網格，精準 5.4cm x 9cm) ★
+      // ★ Word 匯出邏輯 (修復直向錯誤，強制 A4 橫向，精準 Pt 解析) ★
       const exportToWord = () => {
         if (stagedCards.length === 0) {
           alert('⚠️ 暫存區目前是空的！\n\n請先在左側輸入好「技能文字」後，點擊左下方的【產生技能卡】按鈕，接著就能下載列印囉！');
@@ -471,21 +471,22 @@
         let rowsHtml = '';
         // 嚴格執行 5欄x2列 (共10張為一頁) 的分頁邏輯
         for (let p = 0; p < stagedCards.length; p += 10) {
-          rowsHtml += '<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 27cm;">';
+          // 使用 pt (點) 為單位，最符合 Word 原生解析，避免 cm 換算公差導致跑版 (5.4cm * 5 = 27cm = 765pt)
+          rowsHtml += '<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 765pt;">';
           for (let r = 0; r < 2; r++) {
-            rowsHtml += '<tr style="height: 9cm;">';
+            rowsHtml += '<tr style="height: 255pt;">'; // 9cm = 255.1pt，抓整數 255pt
             for (let c = 0; c < 5; c++) {
               const idx = p + r * 5 + c;
               const cardObj = stagedCards[idx];
               if (cardObj) {
                 const cardSrc = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
-                // 強制加入 Word 相容的寬高參數與淺灰色虛線邊框 (方便裁剪)
-                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt dashed #cccccc; text-align: center; vertical-align: middle;">
-                               <img src="${cardSrc}" style="width: 5.4cm; height: 9cm; object-fit: contain;" />
+                // 5.4cm = 153pt。加入隱形淺灰虛線邊框方便對齊裁切。
+                rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc; text-align: center; vertical-align: middle;">
+                               <img src="${cardSrc}" width="204" height="340" style="width: 153pt; height: 255pt;" />
                              </td>`;
               } else {
                 // 空白格子補滿版面
-                rowsHtml += `<td style="width: 5.4cm; height: 9cm; padding: 0; margin: 0; border: 1pt dashed #cccccc;"></td>`;
+                rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc;"></td>`;
               }
             }
             rowsHtml += '</tr>';
@@ -498,7 +499,7 @@
           }
         }
 
-        // 加入完整的 Office Word HTML Header 與橫式(Landscape)邊界設定
+        // 加入完整的 Office Word HTML Header 與橫向(Landscape)邊界設定
         const htmlContent = `
           <html xmlns:v="urn:schemas-microsoft-com:vml"
                 xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -508,19 +509,32 @@
           <head>
             <meta charset="utf-8">
             <style>
-              @page WordSection1 {
-                size: 29.7cm 21.0cm; /* Word 横向 A4 */
+              /* Word 原生 A4 橫向尺寸 (841.9pt x 595.3pt)，邊界 1.27cm (36pt) */
+              @page {
+                size: 841.9pt 595.3pt;
                 mso-page-orientation: landscape;
-                margin: 1.27cm 1.27cm 1.27cm 1.27cm; /* 上下左右 1.27公分 */
-                mso-header-margin: 35.4pt;
-                mso-footer-margin: 35.4pt;
-                mso-paper-source: 0;
+                margin: 36.0pt 36.0pt 36.0pt 36.0pt;
               }
-              div.WordSection1 { page: WordSection1; }
+              @page Section1 {
+                size: 841.9pt 595.3pt;
+                mso-page-orientation: landscape;
+                margin: 36.0pt 36.0pt 36.0pt 36.0pt;
+              }
+              div.Section1 { page: Section1; }
             </style>
+            <!-- 強制 Word 以列印模式及正確版面解析 -->
+            <!--[if gte mso 9]>
+            <xml>
+              <w:WordDocument>
+                <w:View>Print</w:View>
+                <w:Zoom>100</w:Zoom>
+                <w:DoNotOptimizeForBrowser/>
+              </w:WordDocument>
+            </xml>
+            <![endif]-->
           </head>
           <body>
-            <div class="WordSection1">
+            <div class="Section1">
               ${rowsHtml}
             </div>
           </body>
