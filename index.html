@@ -714,35 +714,45 @@
                   <div className="border border-slate-300 rounded-lg bg-slate-200 p-4 flex flex-col items-center shadow-inner relative overflow-hidden">
                     <h3 className="text-xs font-bold text-slate-500 mb-3 w-full text-center"><i className="fa-solid fa-eye"></i> 3. 即時預覽與微調</h3>
                     
-                    <div className="flex justify-center w-full relative">
+                    <div className="flex items-end justify-between w-full px-1 xl:px-4 gap-2">
                       
-                      {/* ★ 移除數字顯示、使用絕對定位移至最左下角，徹底解決晃動問題 ★ */}
-                      <div className="absolute left-0 bottom-0 flex flex-col items-center justify-center bg-white/90 py-3 px-1.5 rounded-full shadow-sm border border-slate-300 z-10" title="若日期沒有對齊圖片，可上下拖曳微調位置">
-                        <span className="text-[9px] font-bold text-slate-500 mb-1">上</span>
+                      {/* ★ 左側：縮小版微調拉霸 (使用 Flex 佔位固定，徹底解決晃動) ★ */}
+                      <div className="flex flex-col items-center justify-center bg-white/90 py-2 px-1 rounded-full shadow-sm border border-slate-300 z-10 mb-2 shrink-0 w-[26px]" title="若日期沒有對齊圖片，可上下拖曳微調位置">
+                        <span className="text-[8px] font-bold text-slate-500 mb-1 leading-none">上</span>
                         
-                        <div className="relative h-[90px] w-4 flex items-center justify-center my-1">
+                        <div className="relative h-[80px] w-3 flex items-center justify-center my-1">
                           <input 
                             type="range" 
                             min="-100" 
                             max="100" 
                             value={-dateOffsetY} 
                             onChange={(e) => setDateOffsetY(-parseInt(e.target.value, 10))}
-                            className="absolute w-[90px] h-1 accent-blue-600 cursor-ns-resize origin-center -rotate-90 bg-slate-200 rounded-lg appearance-none"
+                            className="absolute w-[80px] h-[3px] accent-blue-600 cursor-ns-resize origin-center -rotate-90 bg-slate-300 rounded-lg appearance-none"
                             style={{ outline: "none" }}
                           />
                         </div>
 
-                        <span className="text-[9px] font-bold text-slate-500 mt-1">下</span>
-                        <span className="text-[9px] font-bold text-blue-800 mt-1">微調</span>
+                        <span className="text-[8px] font-bold text-slate-500 mt-1 leading-none">下</span>
+                        
+                        <div className="flex flex-col items-center mt-1.5">
+                           <span className="text-[8px] font-bold text-blue-800 leading-tight">微</span>
+                           <span className="text-[8px] font-bold text-blue-800 leading-tight">調</span>
+                        </div>
                       </div>
 
-                      {/* ★ 放大的 Canvas 畫布 (因為拉霸已脫離排版，畫布會完美置中不晃動) ★ */}
-                      <canvas 
-                        ref={previewCanvasRef} 
-                        width="450" 
-                        height="800" 
-                        className="w-full max-w-[280px] xl:max-w-[320px] h-auto border border-slate-300 shadow-md rounded bg-white transition-all duration-300"
-                      />
+                      {/* ★ 中央：放大的 Canvas 畫布 (flex-1 搭配置中，保證絕不晃動) ★ */}
+                      <div className="flex-1 flex justify-center items-center">
+                        <canvas 
+                          ref={previewCanvasRef} 
+                          width="450" 
+                          height="800" 
+                          className="w-full max-w-[260px] xl:max-w-[320px] h-auto border border-slate-300 shadow-md rounded bg-white transition-all duration-300"
+                        />
+                      </div>
+
+                      {/* ★ 右側：隱形平衡區塊 (用來抵銷左側拉霸的 26px 寬度，讓畫布完美居中) ★ */}
+                      <div className="w-[26px] shrink-0"></div>
+                      
                     </div>
                   </div>
 
