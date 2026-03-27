@@ -710,32 +710,32 @@
                     />
                   </div>
 
-                  {/* 區塊 4: ★ 即時預覽與直向微調控制 (移至預覽圖左側) ★ */}
+                  {/* 區塊 4: ★ 即時預覽與直向微調控制 (版面最佳化) ★ */}
                   <div className="border border-slate-300 rounded-lg bg-slate-200 p-4 flex flex-col items-center shadow-inner relative">
-                    <h3 className="text-xs font-bold text-slate-500 mb-4 w-full text-center"><i className="fa-solid fa-eye"></i> 3. 即時預覽與微調</h3>
+                    <h3 className="text-xs font-bold text-slate-500 mb-3 w-full text-center"><i className="fa-solid fa-eye"></i> 3. 即時預覽與微調</h3>
                     
-                    <div className="flex items-center justify-center gap-6 w-full">
+                    <div className="flex items-center justify-center gap-4 w-full">
                       
-                      {/* ★ 全新直向微調面板 (按鈕式) ★ */}
-                      <div className="flex flex-col items-center justify-center bg-white/90 p-2 rounded-xl shadow-sm border border-slate-300" title="若日期沒有對齊圖片，可點擊箭頭微調位置">
-                        <span className="text-[11px] font-bold text-blue-800 mb-2 whitespace-nowrap">日期微調</span>
+                      {/* ★ 縮小並移至最左側的直向微調面板 ★ */}
+                      <div className="flex flex-col items-center justify-center bg-white/80 p-1.5 rounded-lg shadow-sm border border-slate-300 shrink-0" title="若日期沒有對齊圖片，可點擊箭頭微調位置">
+                        <span className="text-[10px] font-bold text-blue-800 mb-1.5 whitespace-nowrap">微調</span>
                         
                         <button 
                           onClick={() => setDateOffsetY(o => o - 2)} 
-                          className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded mb-1 transition-colors border border-slate-200 shadow-sm"
+                          className="w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded mb-1 transition-colors border border-slate-200 shadow-sm"
                         >
-                          <i className="fa-solid fa-caret-up text-lg"></i>
+                          <i className="fa-solid fa-caret-up"></i>
                         </button>
                         
-                        <span className="text-xs font-mono font-bold text-slate-700 w-8 text-center my-1 select-none">
+                        <span className="text-[10px] font-mono font-bold text-slate-700 w-6 text-center my-0.5 select-none">
                           {dateOffsetY > 0 ? `+${dateOffsetY}` : dateOffsetY}
                         </span>
                         
                         <button 
                           onClick={() => setDateOffsetY(o => o + 2)} 
-                          className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded mt-1 transition-colors border border-slate-200 shadow-sm"
+                          className="w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded mt-1 transition-colors border border-slate-200 shadow-sm"
                         >
-                          <i className="fa-solid fa-caret-down text-lg"></i>
+                          <i className="fa-solid fa-caret-down"></i>
                         </button>
                         
                         <button onClick={() => setDateOffsetY(0)} className="text-[9px] text-slate-400 hover:text-red-500 mt-2 underline decoration-slate-300">
@@ -743,12 +743,12 @@
                         </button>
                       </div>
 
-                      {/* Canvas 畫布 */}
+                      {/* ★ 放大的 Canvas 畫布 ★ */}
                       <canvas 
                         ref={previewCanvasRef} 
                         width="450" 
                         height="800" 
-                        className="w-full max-w-[190px] h-auto border border-slate-300 shadow-md rounded bg-white"
+                        className="w-full max-w-[240px] xl:max-w-[260px] h-auto border border-slate-300 shadow-md rounded bg-white shrink-0 transition-all duration-300"
                       />
                     </div>
                   </div>
