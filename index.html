@@ -461,31 +461,28 @@
         showMessage(`✅ 成功生成 ${newCards.length} 張卡片！`);
       };
 
-      // ★ Word 匯出邏輯 (修復直向錯誤，強制 A4 橫向，精準 Pt 解析) ★
-      const exportToWord = () => {
-        if (stagedCards.length === 0) {
-          alert('⚠️ 暫存區目前是空的！\n\n請先在左側輸入好「技能文字」後，點擊左下方的【產生技能卡】按鈕，接著就能下載列印囉！');
+      // ★ 通用 Word 匯出邏輯 (將陣列中的卡片轉成 A4 橫向 Word) ★
+      const exportCardsToWord = (cardsArray, filename) => {
+        if (cardsArray.length === 0) {
+          alert('⚠️ 目前沒有卡片可以下載喔！');
           return;
         }
 
         let rowsHtml = '';
         // 嚴格執行 5欄x2列 (共10張為一頁) 的分頁邏輯
-        for (let p = 0; p < stagedCards.length; p += 10) {
-          // 使用 pt (點) 為單位，最符合 Word 原生解析，避免 cm 換算公差導致跑版 (5.4cm * 5 = 27cm = 765pt)
+        for (let p = 0; p < cardsArray.length; p += 10) {
           rowsHtml += '<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 765pt;">';
           for (let r = 0; r < 2; r++) {
-            rowsHtml += '<tr style="height: 255pt;">'; // 9cm = 255.1pt，抓整數 255pt
+            rowsHtml += '<tr style="height: 255pt;">'; 
             for (let c = 0; c < 5; c++) {
               const idx = p + r * 5 + c;
-              const cardObj = stagedCards[idx];
+              const cardObj = cardsArray[idx];
               if (cardObj) {
                 const cardSrc = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
-                // 5.4cm = 153pt。加入隱形淺灰虛線邊框方便對齊裁切。
                 rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc; text-align: center; vertical-align: middle;">
                                <img src="${cardSrc}" width="204" height="340" style="width: 153pt; height: 255pt;" />
                              </td>`;
               } else {
-                // 空白格子補滿版面
                 rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc;"></td>`;
               }
             }
@@ -493,13 +490,11 @@
           }
           rowsHtml += '</table>';
           
-          // 超過一頁(10張)時，強迫 Word 進行換頁
-          if (p + 10 < stagedCards.length) {
+          if (p + 10 < cardsArray.length) {
             rowsHtml += '<br style="page-break-before: always; mso-special-character: line-break;" clear="all" />';
           }
         }
 
-        // 加入完整的 Office Word HTML Header 與橫向(Landscape)邊界設定
         const htmlContent = `
           <html xmlns:v="urn:schemas-microsoft-com:vml"
                 xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -509,7 +504,6 @@
           <head>
             <meta charset="utf-8">
             <style>
-              /* Word 原生 A4 橫向尺寸 (841.9pt x 595.3pt)，邊界 1.27cm (36pt) */
               @page {
                 size: 841.9pt 595.3pt;
                 mso-page-orientation: landscape;
@@ -522,7 +516,6 @@
               }
               div.Section1 { page: Section1; }
             </style>
-            <!-- 強制 Word 以列印模式及正確版面解析 -->
             <!--[if gte mso 9]>
             <xml>
               <w:WordDocument>
@@ -545,10 +538,10 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = '技能卡批量列印_A4橫向.doc';
+        link.download = filename;
         link.click();
         URL.revokeObjectURL(url);
-        showMessage('✅ Word 檔案已開始下載 (A4橫式)');
+        showMessage(`✅ Word 檔案已開始下載：${filename}`);
       };
 
       const addStudent = async () => {
@@ -730,7 +723,7 @@
                     
                     <div className="flex items-end justify-between w-full px-1 xl:px-4 gap-2">
                       
-                      {/* ★ 左側：縮小版微調拉霸 (使用 Flex 佔位固定，徹底解決晃動) ★ */}
+                      {/* ★ 左側：縮小版微調拉霸 ★ */}
                       <div className="flex flex-col items-center justify-center bg-white/90 py-2 px-1 rounded-full shadow-sm border border-slate-300 z-10 mb-2 shrink-0 w-[26px]" title="若日期沒有對齊圖片，可上下拖曳微調位置">
                         <span className="text-[8px] font-bold text-slate-500 mb-1 leading-none">上</span>
                         
@@ -754,7 +747,7 @@
                         </div>
                       </div>
 
-                      {/* ★ 中央：放大的 Canvas 畫布 (flex-1 搭配置中，保證絕不晃動) ★ */}
+                      {/* ★ 中央：放大的 Canvas 畫布 ★ */}
                       <div className="flex-1 flex justify-center items-center">
                         <canvas 
                           ref={previewCanvasRef} 
@@ -764,7 +757,7 @@
                         />
                       </div>
 
-                      {/* ★ 右側：隱形平衡區塊 (用來抵銷左側拉霸的 26px 寬度，讓畫布完美居中) ★ */}
+                      {/* ★ 右側：隱形平衡區塊 ★ */}
                       <div className="w-[26px] shrink-0"></div>
                       
                     </div>
@@ -838,8 +831,9 @@
                     <h2 className="text-lg font-bold flex items-center gap-2">
                       <i className="fa-regular fa-file-lines text-green-500 text-xl"></i> 卡片暫存區 ({stagedCards.length} 張)
                     </h2>
+                    {/* ★ 老師端的匯出按鈕 ★ */}
                     <button 
-                      onClick={exportToWord}
+                      onClick={() => exportCardsToWord(stagedCards, '技能卡批量列印_A4橫向.doc')}
                       className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-slate-700 transition-colors shadow-sm"
                     >
                       <i className="fa-solid fa-download"></i> 下載 A4 橫式列印檔
@@ -929,14 +923,27 @@
 
                     return (
                       <>
-                        <div className="flex items-center justify-between mb-6 border-b border-amber-200 pb-4">
+                        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 border-b border-amber-200 pb-4 gap-4">
                           <h3 className="text-xl font-bold text-amber-900 flex items-center gap-2">
                             <i className="fa-solid fa-gem text-amber-500"></i>
                             {student.name} 的珍藏卡片
                           </h3>
-                          <span className="bg-amber-500 text-white px-4 py-1 rounded-full font-bold shadow-sm">
-                            總計：{studentCards.length} 張
-                          </span>
+                          
+                          {/* ★ 學生端的匯出按鈕 ★ */}
+                          <div className="flex items-center gap-3">
+                            <span className="bg-amber-500 text-white px-4 py-1.5 rounded-full font-bold shadow-sm">
+                              總計：{studentCards.length} 張
+                            </span>
+                            {studentCards.length > 0 && (
+                              <button 
+                                onClick={() => exportCardsToWord(studentCards, `${student.name}_技能卡收集冊.doc`)}
+                                className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-1.5 rounded-full font-bold shadow-sm flex items-center gap-2 transition-colors"
+                                title="下載Word檔，將收集到的卡片印出來！"
+                              >
+                                <i className="fa-solid fa-download"></i> 打包帶走
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {Object.keys(groupedCards).length === 0 ? (
