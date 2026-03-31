@@ -723,7 +723,7 @@
                     
                     <div className="flex items-end justify-between w-full px-1 xl:px-4 gap-2">
                       
-                      {/* ★ 左側：縮小版微調拉霸 ★ */}
+                      {/* ★ 左側：縮小版微調拉霸 (使用 Flex 佔位固定，徹底解決晃動) ★ */}
                       <div className="flex flex-col items-center justify-center bg-white/90 py-2 px-1 rounded-full shadow-sm border border-slate-300 z-10 mb-2 shrink-0 w-[26px]" title="若日期沒有對齊圖片，可上下拖曳微調位置">
                         <span className="text-[8px] font-bold text-slate-500 mb-1 leading-none">上</span>
                         
@@ -747,7 +747,7 @@
                         </div>
                       </div>
 
-                      {/* ★ 中央：放大的 Canvas 畫布 ★ */}
+                      {/* ★ 中央：放大的 Canvas 畫布 (flex-1 搭配置中，保證絕不晃動) ★ */}
                       <div className="flex-1 flex justify-center items-center">
                         <canvas 
                           ref={previewCanvasRef} 
@@ -757,7 +757,7 @@
                         />
                       </div>
 
-                      {/* ★ 右側：隱形平衡區塊 ★ */}
+                      {/* ★ 右側：隱形平衡區塊 (用來抵銷左側拉霸的 26px 寬度，讓畫布完美居中) ★ */}
                       <div className="w-[26px] shrink-0"></div>
                       
                     </div>
