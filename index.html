@@ -1,939 +1,976 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Download, Send, Users, Backpack, Gem, FileText, CheckSquare, Square, Plus, Trash2, Eye, Settings, Utensils, Shirt, Home, Car, BookOpen, Gamepad2, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>數位技能卡派發系統</title>
 
-// --- 1. 初始化 Firebase (全域設定與安全防護) ---
-const customFirebaseConfig = {
-  apiKey: "請填寫您的_API_KEY",
-  authDomain: "請填寫您的_PROJECT_ID.firebaseapp.com",
-  projectId: "請填寫您的_PROJECT_ID",
-  storageBucket: "請填寫您的_PROJECT_ID.appspot.com",
-  messagingSenderId: "請填寫您的_SENDER_ID",
-  appId: "請填寫您的_APP_ID"
-};
-
-let app, auth, db, appId;
-try {
-  const configObj = typeof __firebase_config !== 'undefined' 
-    ? (typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config) 
-    : customFirebaseConfig;
-    
-  app = initializeApp(configObj);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  appId = typeof __app_id !== 'undefined' ? __app_id : 'digital-skill-card';
-} catch (e) {
-  console.error("Firebase 初始化失敗，請確認設定檔或連線狀態:", e);
-}
-
-// --- 圖片壓縮工具 ---
-const resizeImage = (file, maxWidth = 400) => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ratio = maxWidth / img.width;
-        canvas.width = maxWidth;
-        canvas.height = img.height * ratio;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
-// --- 學生背包的翻轉卡片獨立組件 ---
-const FlipCard = ({ card, idx, total, categoryImages }) => {
-  const [isFlipped, setIsFlipped] = useState(false);
+  <!-- 載入 Tailwind CSS (排版與美化) -->
+  <script src="https://cdn.tailwindcss.com"></script>
   
-  const cardDataUrl = typeof card === 'string' ? card : card.dataUrl;
-  const category = typeof card === 'string' ? '預設' : (card.category || '預設');
+  <!-- 載入 FontAwesome 圖示 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  const renderBackCover = () => {
-    if (categoryImages && categoryImages[category]) {
+  <!-- 載入 React 核心函式庫 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- 載入 Babel (讓瀏覽器能直接解析 JSX 語法) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- 載入 Firebase (v8 相容版本，最適合 GitHub Pages 單檔使用) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+  <style>
+    /* 確保 3D 翻轉效果在所有瀏覽器正常運作 */
+    .preserve-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; }
+    
+    /* 自訂滾動條美化 */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+  
+  <!-- React 應用程式的掛載點 -->
+  <div id="root"></div>
+
+  <!-- React 程式碼開始 -->
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    // --- 1. 初始化 Firebase (您的專屬金鑰) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCi1ltDPRUd1LE3_Rf42YaRF1K28tY9FRE",
+      authDomain: "card-8ba7e.firebaseapp.com",
+      projectId: "card-8ba7e",
+      storageBucket: "card-8ba7e.firebasestorage.app",
+      messagingSenderId: "111155281491",
+      appId: "1:111155281491:web:1b6e6da300291e9e6450a6",
+      measurementId: "G-CWMC69DRFC"
+    };
+
+    let app, auth, db;
+    const appId = 'digital-skill-card';
+    
+    try {
+      if (!firebase.apps.length) {
+        app = firebase.initializeApp(firebaseConfig);
+      } else {
+        app = firebase.app();
+      }
+      auth = firebase.auth();
+      db = firebase.firestore();
+    } catch (e) {
+      console.error("Firebase 初始化失敗:", e);
+    }
+
+    // --- 圖片壓縮工具 ---
+    const resizeImage = (file, maxWidth = 400) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ratio = maxWidth / img.width;
+            canvas.width = maxWidth;
+            canvas.height = img.height * ratio;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    // --- 學生背包的翻轉卡片獨立組件 ---
+    const FlipCard = ({ card, idx, total, categoryImages }) => {
+      const [isFlipped, setIsFlipped] = useState(false);
+      
+      const cardDataUrl = typeof card === 'string' ? card : card.dataUrl;
+      const category = typeof card === 'string' ? '預設' : (card.category || '預設');
+
+      const renderBackCover = () => {
+        if (categoryImages && categoryImages[category]) {
+          return (
+            <div className="absolute inset-0 w-full h-full rounded-xl shadow-lg border-4 border-slate-200 bg-white group-hover:shadow-xl group-hover:scale-[1.02] transition-all flex items-center justify-center p-2 backface-hidden">
+              <img src={categoryImages[category]} alt={category} className="w-full h-full object-contain" />
+            </div>
+          );
+        }
+
+        const config = {
+          '食': { bg: 'from-green-400 to-emerald-600', icon: <i className="fa-solid fa-utensils text-5xl text-white drop-shadow"></i> },
+          '衣': { bg: 'from-pink-400 to-rose-600', icon: <i className="fa-solid fa-shirt text-5xl text-white drop-shadow"></i> },
+          '住': { bg: 'from-teal-400 to-cyan-600', icon: <i className="fa-solid fa-house text-5xl text-white drop-shadow"></i> },
+          '行': { bg: 'from-blue-400 to-indigo-600', icon: <i className="fa-solid fa-car-side text-5xl text-white drop-shadow"></i> },
+          '育': { bg: 'from-orange-400 to-amber-600', icon: <i className="fa-solid fa-book-open text-5xl text-white drop-shadow"></i> },
+          '樂': { bg: 'from-yellow-400 to-orange-500', icon: <i className="fa-solid fa-gamepad text-5xl text-white drop-shadow"></i> },
+          '隱藏': { bg: 'from-purple-500 to-fuchsia-700', icon: <i className="fa-solid fa-circle-question text-5xl text-white drop-shadow animate-pulse"></i> },
+          '預設': { bg: 'from-indigo-500 to-purple-600', icon: <i className="fa-solid fa-gem text-5xl text-white drop-shadow animate-pulse"></i> },
+        };
+        const style = config[category] || config['預設'];
+
+        return (
+          <div className={`absolute inset-0 w-full h-full rounded-xl shadow-lg border-4 border-white bg-gradient-to-br ${style.bg} flex flex-col items-center justify-center group-hover:shadow-xl group-hover:scale-[1.02] transition-all backface-hidden`}>
+            <div className="border-2 border-white/40 border-dashed rounded-lg w-10/12 h-[95%] flex flex-col items-center justify-center relative">
+              <div className="absolute top-4 left-4 text-white opacity-40">✨</div>
+              <div className="absolute bottom-4 right-4 text-white opacity-40">✨</div>
+              {style.icon}
+              <span className="text-white font-bold tracking-widest text-xl mt-4 drop-shadow-md">{category !== '預設' ? category : '神秘'}卡</span>
+              <span className="text-white/80 text-sm mt-1">點擊翻開</span>
+            </div>
+          </div>
+        );
+      };
+
       return (
-        <div className="absolute inset-0 w-full h-full rounded-xl shadow-lg border-4 border-slate-200 bg-white group-hover:shadow-xl group-hover:scale-[1.02] transition-all flex items-center justify-center p-2" style={{ backfaceVisibility: 'hidden' }}>
-          <img src={categoryImages[category]} alt={category} className="w-full h-full object-contain" />
+        <div className="flex flex-col items-center">
+          <div 
+            className="relative w-full cursor-pointer group" 
+            style={{ perspective: '1000px', aspectRatio: '450/800' }}
+            onClick={() => setIsFlipped(!isFlipped)}
+          >
+            <div 
+              className="w-full h-full transition-transform duration-700 ease-in-out preserve-3d"
+              style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+            >
+              {renderBackCover()}
+              <div 
+                className="absolute inset-0 w-full h-full rounded-xl shadow-md border border-slate-200 bg-white overflow-hidden group-hover:shadow-xl transition-shadow backface-hidden"
+                style={{ transform: 'rotateY(180deg)' }}
+              >
+                <img src={cardDataUrl} alt={`技能卡 ${idx+1}`} className="w-full h-full object-cover" />
+              </div>
+            </div>
+          </div>
+          <div className={`text-center text-sm font-bold mt-3 transition-colors duration-500 ${isFlipped ? 'text-amber-700' : 'text-slate-400'}`}>
+            {isFlipped ? `⭐ 獲得卡片 #${total - idx}` : `${category !== '預設' ? `[${category}] ` : ''}尚未翻開`}
+          </div>
         </div>
       );
-    }
-
-    const config = {
-      '食': { bg: 'from-green-400 to-emerald-600', icon: <Utensils size={56} className="text-white drop-shadow"/> },
-      '衣': { bg: 'from-pink-400 to-rose-600', icon: <Shirt size={56} className="text-white drop-shadow"/> },
-      '住': { bg: 'from-teal-400 to-cyan-600', icon: <Home size={56} className="text-white drop-shadow"/> },
-      '行': { bg: 'from-blue-400 to-indigo-600', icon: <Car size={56} className="text-white drop-shadow"/> },
-      '育': { bg: 'from-orange-400 to-amber-600', icon: <BookOpen size={56} className="text-white drop-shadow"/> },
-      '樂': { bg: 'from-yellow-400 to-orange-500', icon: <Gamepad2 size={56} className="text-white drop-shadow"/> },
-      '隱藏': { bg: 'from-purple-500 to-fuchsia-700', icon: <HelpCircle size={56} className="text-white drop-shadow animate-pulse"/> },
-      '預設': { bg: 'from-indigo-500 to-purple-600', icon: <Gem size={56} className="text-white drop-shadow animate-pulse"/> },
     };
-    const style = config[category] || config['預設'];
 
-    return (
-      <div className={`absolute inset-0 w-full h-full rounded-xl shadow-lg border-4 border-white bg-gradient-to-br ${style.bg} flex flex-col items-center justify-center group-hover:shadow-xl group-hover:scale-[1.02] transition-all`} style={{ backfaceVisibility: 'hidden' }}>
-        <div className="border-2 border-white/40 border-dashed rounded-lg w-10/12 h-[95%] flex flex-col items-center justify-center relative">
-          <div className="absolute top-4 left-4 text-white opacity-40">✨</div>
-          <div className="absolute bottom-4 right-4 text-white opacity-40">✨</div>
-          {style.icon}
-          <span className="text-white font-bold tracking-widest text-xl mt-4 drop-shadow-md">{category !== '預設' ? category : '神秘'}卡</span>
-          <span className="text-white/80 text-sm mt-1">點擊翻開</span>
-        </div>
-      </div>
-    );
-  };
+    // --- 主應用程式元件 ---
+    const App = () => {
+      const [activeTab, setActiveTab] = useState('teacher');
+      const [message, setMessage] = useState('');
+      const [user, setUser] = useState(null);
 
-  return (
-    <div className="flex flex-col items-center">
-      <div 
-        className="relative w-full cursor-pointer group" 
-        style={{ perspective: '1000px', aspectRatio: '450/800' }}
-        onClick={() => setIsFlipped(!isFlipped)}
-      >
-        <div 
-          className="w-full h-full transition-transform duration-700 ease-in-out"
-          style={{ 
-            transformStyle: 'preserve-3d', 
-            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' 
-          }}
-        >
-          {renderBackCover()}
-          <div 
-            className="absolute inset-0 w-full h-full rounded-xl shadow-md border border-slate-200 bg-white overflow-hidden group-hover:shadow-xl transition-shadow"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-          >
-            <img src={cardDataUrl} alt={`技能卡 ${idx+1}`} className="w-full h-full object-cover" />
-          </div>
-        </div>
-      </div>
-      <div className={`text-center text-sm font-bold mt-3 transition-colors duration-500 ${isFlipped ? 'text-amber-700' : 'text-slate-400'}`}>
-        {isFlipped ? `⭐ 獲得卡片 #${total - idx}` : `${category !== '預設' ? `[${category}] ` : ''}尚未翻開`}
-      </div>
-    </div>
-  );
-};
+      const [headImgUrl, setHeadImgUrl] = useState(null);
+      const [footImgUrl, setFootImgUrl] = useState(null);
+      const [fontName, setFontName] = useState('BiauKai');
+      const [skillsText, setSkillsText] = useState('(食)我能 在文青麵店 品嘗美食\n(衣)我會 自己洗碗');
+      const [dateText, setDateText] = useState('1140415 Anping劍獅');
+      const [dateOffsetY, setDateOffsetY] = useState(0); 
+      const [stagedCards, setStagedCards] = useState([]);
 
+      const [categoryImages, setCategoryImages] = useState({});
+      const [showSettings, setShowSettings] = useState(false);
+      const categoriesList = ['食', '衣', '住', '行', '育', '樂', '隱藏'];
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('teacher');
-  const [message, setMessage] = useState('');
-  const [user, setUser] = useState(null);
+      const [students, setStudents] = useState([]);
+      const [newStudentName, setNewStudentName] = useState('');
+      const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+      const [viewingStudentId, setViewingStudentId] = useState('');
 
-  const [headImgUrl, setHeadImgUrl] = useState(null);
-  const [footImgUrl, setFootImgUrl] = useState(null);
-  const [fontName, setFontName] = useState('BiauKai');
-  const [skillsText, setSkillsText] = useState('(食)我能 在文青麵店 品嘗美食\n(衣)我會 自己洗碗');
-  const [dateText, setDateText] = useState('1140415 Anping劍獅');
-  const [dateOffsetY, setDateOffsetY] = useState(0); 
-  const [stagedCards, setStagedCards] = useState([]);
+      const previewCanvasRef = useRef(null);
 
-  const [categoryImages, setCategoryImages] = useState({});
-  const [showSettings, setShowSettings] = useState(false);
-  const categoriesList = ['食', '衣', '住', '行', '育', '樂', '隱藏'];
+      const showMessage = (msg) => {
+        setMessage(msg);
+        setTimeout(() => setMessage(''), 3000);
+      };
 
-  const [students, setStudents] = useState([]);
-  const [newStudentName, setNewStudentName] = useState('');
-  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-  const [viewingStudentId, setViewingStudentId] = useState('');
+      // GitHub Pages 適用的匿名登入
+      useEffect(() => {
+        if (!auth) return;
+        auth.signInAnonymously().catch(e => console.error("登入失敗:", e));
+        const unsubscribe = auth.onAuthStateChanged(setUser);
+        return () => unsubscribe();
+      }, []);
 
-  const previewCanvasRef = useRef(null);
+      useEffect(() => {
+        if (!user || !db) return;
 
-  const showMessage = (msg) => {
-    setMessage(msg);
-    setTimeout(() => setMessage(''), 3000);
-  };
+        const studentsRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('students');
+        const unsubStudents = studentsRef.onSnapshot((snapshot) => {
+          const studentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          studentsData.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          setStudents(studentsData);
+        });
 
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+        const settingsRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('settings').doc('categoryImages');
+        const unsubSettings = settingsRef.onSnapshot((docSnap) => {
+          if (docSnap.exists) {
+            setCategoryImages(docSnap.data());
+          }
+        });
+
+        return () => { unsubStudents(); unsubSettings(); };
+      }, [user]);
+
+      const handleImageUpload = (e, setter) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => setter(event.target.result);
+          reader.readAsDataURL(file);
         }
-      } catch (error) {
-        console.error("Auth error:", error);
-      }
-    };
-    initAuth();
-    
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
-  }, []);
+      };
 
-  useEffect(() => {
-    if (!user || !db) return;
-
-    const studentsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'students');
-    const unsubStudents = onSnapshot(studentsRef, (snapshot) => {
-      const studentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      studentsData.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-      setStudents(studentsData);
-    });
-
-    const settingsRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'categoryImages');
-    const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setCategoryImages(docSnap.data());
-      }
-    });
-
-    return () => { unsubStudents(); unsubSettings(); };
-  }, [user]);
-
-  const handleImageUpload = (e, setter) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => setter(event.target.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleCategoryUpload = async (category, e) => {
-    const file = e.target.files[0];
-    if (!file || !user || !db) return;
-    try {
-      showMessage('上傳處理中...');
-      const compressedUrl = await resizeImage(file, 400);
-      const newSettings = { ...categoryImages, [category]: compressedUrl };
-      setCategoryImages(newSettings);
-      
-      const settingsRef = doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'categoryImages');
-      await setDoc(settingsRef, newSettings, { merge: true });
-      showMessage(`✅ 「${category}」專屬圖案已更新至雲端！`);
-    } catch (err) {
-      console.error(err);
-      showMessage('❌ 上傳失敗');
-    }
-  };
-
-  const handleFontUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      const buffer = await file.arrayBuffer();
-      const fontFace = new FontFace('CustomBaoFeng', buffer);
-      await fontFace.load();
-      document.fonts.add(fontFace);
-      setFontName('CustomBaoFeng');
-      showMessage('✅ 自訂字型載入成功！');
-    } catch (err) {
-      showMessage('❌ 字型載入失敗，將使用預設字體');
-    }
-  };
-
-  const loadImageData = (src) => {
-    return new Promise((resolve) => {
-      if (!src) return resolve(null);
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.src = src;
-    });
-  };
-
-  const parseSkillsText = (text) => {
-    return text.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => {
-        let category = '預設';
-        let content = line;
-        
-        // 抓取括號內的文字當作「類別」 (支援半形與全形括號)
-        const match = line.match(/^[\(（](.*?)[\)）]/);
-        if (match) {
-          category = match[1];
-          // 移除開頭的 (類別) 標籤
-          content = line.replace(/^[\(（].*?[\)）]/, '').trim();
+      const handleCategoryUpload = async (category, e) => {
+        const file = e.target.files[0];
+        if (!file || !user || !db) return;
+        try {
+          showMessage('上傳處理中...');
+          const compressedUrl = await resizeImage(file, 400);
+          const newSettings = { ...categoryImages, [category]: compressedUrl };
+          setCategoryImages(newSettings);
+          
+          const settingsRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('settings').doc('categoryImages');
+          await settingsRef.set(newSettings, { merge: true });
+          showMessage(`✅ 「${category}」專屬圖案已更新至雲端！`);
+        } catch (err) {
+          console.error(err);
+          showMessage('❌ 上傳失敗');
         }
-        
-        return { category, text: content };
-      });
-  };
+      };
 
-  useEffect(() => {
-    const drawPreview = async () => {
-      const canvas = previewCanvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+      const handleFontUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const buffer = await file.arrayBuffer();
+          const fontFace = new FontFace('CustomBaoFeng', buffer);
+          await fontFace.load();
+          document.fonts.add(fontFace);
+          setFontName('CustomBaoFeng');
+          showMessage('✅ 自訂字型載入成功！');
+        } catch (err) {
+          showMessage('❌ 字型載入失敗，將使用預設字體');
+        }
+      };
 
-      const parsedSegments = parseSkillsText(skillsText);
-      const firstSegment = parsedSegments[0] || { category: '預設', text: '我會...' };
-      const lines = firstSegment.text.split(/\s+/).filter(l => l !== '');
+      const loadImageData = (src) => {
+        return new Promise((resolve) => {
+          if (!src) return resolve(null);
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.src = src;
+        });
+      };
 
-      const headImg = await loadImageData(headImgUrl);
-      const footImg = await loadImageData(footImgUrl);
+      // ★ 核心解析邏輯：Enter產生新卡片，空白鍵換行 ★
+      const parseSkillsText = (text) => {
+        return text.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map((line, index) => {
+            let category = '預設';
+            let content = line;
+            
+            const match = line.match(/^[\(（](.*?)[\)）]/);
+            if (match) {
+              category = match[1];
+              content = line.replace(/^[\(（].*?[\)）]/, '').trim();
+            }
+            
+            // 將空白轉換為換行符號供 Canvas 繪製
+            content = content.replace(/\s+/g, '\n');
+            
+            return { id: `card_${index}`, category, text: content };
+          });
+      };
 
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      useEffect(() => {
+        const drawPreview = async () => {
+          const canvas = previewCanvasRef.current;
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
 
-      let headerHeight = 150;
-      if (headImg) {
-        let hRatio = canvas.width / headImg.width;
-        headerHeight = headImg.height * hRatio;
-        ctx.drawImage(headImg, 0, 0, canvas.width, headerHeight);
-      } else {
-        ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 0, canvas.width, 150);
-        ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("無上方圖片", canvas.width/2, 80);
-      }
+          const parsedSegments = parseSkillsText(skillsText);
+          const firstSegment = parsedSegments[0] || { category: '預設', text: '我會...' };
+          
+          const lines = firstSegment.text.split(/\n/).filter(l => l !== '');
 
-      let footerY = 600; 
-      if (footImg) {
-        let targetWidth = canvas.width - 40; 
-        let ratio = targetWidth / footImg.width;
-        let drawHeight = footImg.height * ratio;
-        let x = 20;
-        let y = canvas.height - drawHeight - 20; 
-        ctx.drawImage(footImg, x, y, targetWidth, drawHeight);
-        footerY = y; 
-      } else {
-        ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 600, canvas.width, 200);
-        ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("無下方圖片", canvas.width/2, 700);
-        footerY = 600;
-      }
+          const headImg = await loadImageData(headImgUrl);
+          const footImg = await loadImageData(footImgUrl);
 
-      ctx.fillStyle = "#000000";
-      ctx.textAlign = "left";
-      ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-      ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.textAlign = "center";
-      let fontSize = 45;
-      ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
-      
-      let maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
-      while (maxWidth > 380 && fontSize > 20) {
-        fontSize -= 2;
-        ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
-        maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
-      }
-
-      let lineHeight = fontSize + 15;
-      let centerY = headerHeight + (footerY - headerHeight) / 2; 
-      let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
-
-      lines.forEach((line, index) => {
-        ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
-      });
-    };
-
-    drawPreview();
-  }, [headImgUrl, footImgUrl, fontName, skillsText, dateText, dateOffsetY]);
-
-  const generateCards = async () => {
-    if (!skillsText.trim()) {
-      showMessage('請輸入技能文字');
-      return;
-    }
-
-    const parsedSegments = parseSkillsText(skillsText);
-    
-    const headImg = await loadImageData(headImgUrl);
-    const footImg = await loadImageData(footImgUrl);
-    const canvas = document.createElement('canvas');
-    canvas.width = 450;
-    canvas.height = 800;
-    const ctx = canvas.getContext('2d');
-
-    const newCards = [];
-
-    for (let seg of parsedSegments) {
-      const lines = seg.text.split(/\s+/).filter(l => l !== '');
-      
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      let headerHeight = 150;
-      if (headImg) {
-        let hRatio = canvas.width / headImg.width;
-        headerHeight = headImg.height * hRatio;
-        ctx.drawImage(headImg, 0, 0, canvas.width, headerHeight);
-      } else {
-        ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 0, canvas.width, 150);
-        ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("無上方圖片", canvas.width/2, 80);
-      }
-
-      let footerY = 600; 
-      if (footImg) {
-        let targetWidth = canvas.width - 40; 
-        let ratio = targetWidth / footImg.width;
-        let drawHeight = footImg.height * ratio;
-        let x = 20;
-        let y = canvas.height - drawHeight - 20;
-        ctx.drawImage(footImg, x, y, targetWidth, drawHeight);
-        footerY = y; 
-      } else {
-        ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 600, canvas.width, 200);
-        ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("無下方圖片", canvas.width/2, 700);
-        footerY = 600;
-      }
-
-      ctx.fillStyle = "#000000";
-      ctx.textAlign = "left";
-      ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
-      ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
-
-      ctx.textAlign = "center";
-      let fontSize = 45;
-      ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
-      
-      let maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
-      while (maxWidth > 380 && fontSize > 20) {
-        fontSize -= 2;
-        ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
-        maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
-      }
-
-      let lineHeight = fontSize + 15;
-      let centerY = headerHeight + (footerY - headerHeight) / 2;
-      let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
-
-      lines.forEach((line, index) => {
-        ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
-      });
-
-      newCards.push({
-        dataUrl: canvas.toDataURL('image/jpeg', 0.8),
-        category: seg.category,
-        backpackName: dateText.trim() || '預設背包'
-      });
-    }
-
-    setStagedCards(prev => [...newCards, ...prev]);
-    showMessage(`✅ 成功生成 ${newCards.length} 張卡片！`);
-  };
-
-  const exportCardsToWord = (cardsArray, filename) => {
-    if (cardsArray.length === 0) {
-      alert('⚠️ 目前沒有卡片可以下載喔！');
-      return;
-    }
-
-    let rowsHtml = '';
-    for (let p = 0; p < cardsArray.length; p += 10) {
-      rowsHtml += '<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 765pt;">';
-      for (let r = 0; r < 2; r++) {
-        rowsHtml += '<tr style="height: 255pt;">'; 
-        for (let c = 0; c < 5; c++) {
-          const idx = p + r * 5 + c;
-          const cardObj = cardsArray[idx];
-          if (cardObj) {
-            const cardSrc = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
-            rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc; text-align: center; vertical-align: middle;">
-                           <img src="${cardSrc}" width="204" height="340" style="width: 153pt; height: 255pt;" />
-                         </td>`;
+          let headerHeight = 150;
+          if (headImg) {
+            let hRatio = canvas.width / headImg.width;
+            headerHeight = headImg.height * hRatio;
+            ctx.drawImage(headImg, 0, 0, canvas.width, headerHeight);
           } else {
-            rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc;"></td>`;
+            ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 0, canvas.width, 150);
+            ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
+            ctx.fillText("無上方圖片", canvas.width/2, 80);
           }
+
+          let footerY = 600; 
+          if (footImg) {
+            let targetWidth = canvas.width - 40; 
+            let ratio = targetWidth / footImg.width;
+            let drawHeight = footImg.height * ratio;
+            let x = 20;
+            let y = canvas.height - drawHeight - 20; 
+            ctx.drawImage(footImg, x, y, targetWidth, drawHeight);
+            footerY = y; 
+          } else {
+            ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 600, canvas.width, 200);
+            ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
+            ctx.fillText("無下方圖片", canvas.width/2, 700);
+            footerY = 600;
+          }
+
+          ctx.fillStyle = "#000000";
+          ctx.textAlign = "left";
+          ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
+          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
+
+          ctx.textAlign = "center";
+          let fontSize = 45;
+          ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
+          
+          let maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
+          while (maxWidth > 380 && fontSize > 20) {
+            fontSize -= 2;
+            ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
+            maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
+          }
+
+          let lineHeight = fontSize + 15;
+          let centerY = headerHeight + (footerY - headerHeight) / 2; 
+          let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
+
+          lines.forEach((line, index) => {
+            ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
+          });
+        };
+
+        drawPreview();
+      }, [headImgUrl, footImgUrl, fontName, skillsText, dateText, dateOffsetY]);
+
+      const generateCards = async () => {
+        if (!skillsText.trim()) {
+          showMessage('請輸入技能文字');
+          return;
         }
-        rowsHtml += '</tr>';
-      }
-      rowsHtml += '</table>';
-      
-      if (p + 10 < cardsArray.length) {
-        rowsHtml += '<br style="page-break-before: always; mso-special-character: line-break;" clear="all" />';
-      }
-    }
 
-    const htmlContent = `
-      <html xmlns:v="urn:schemas-microsoft-com:vml"
-            xmlns:o="urn:schemas-microsoft-com:office:office"
-            xmlns:w="urn:schemas-microsoft-com:office:word"
-            xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
-            xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8">
-        <style>
-          @page {
-            size: 841.9pt 595.3pt;
-            mso-page-orientation: landscape;
-            margin: 36.0pt 36.0pt 36.0pt 36.0pt;
+        const parsedSegments = parseSkillsText(skillsText);
+        const headImg = await loadImageData(headImgUrl);
+        const footImg = await loadImageData(footImgUrl);
+        const canvas = document.createElement('canvas');
+        canvas.width = 450;
+        canvas.height = 800;
+        const ctx = canvas.getContext('2d');
+
+        const newCards = [];
+
+        for (let seg of parsedSegments) {
+          const lines = seg.text.split(/\n/).filter(l => l !== '');
+          
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          let headerHeight = 150;
+          if (headImg) {
+            let hRatio = canvas.width / headImg.width;
+            headerHeight = headImg.height * hRatio;
+            ctx.drawImage(headImg, 0, 0, canvas.width, headerHeight);
+          } else {
+            ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 0, canvas.width, 150);
+            ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
+            ctx.fillText("無上方圖片", canvas.width/2, 80);
           }
-          @page Section1 {
-            size: 841.9pt 595.3pt;
-            mso-page-orientation: landscape;
-            margin: 36.0pt 36.0pt 36.0pt 36.0pt;
+
+          let footerY = 600; 
+          if (footImg) {
+            let targetWidth = canvas.width - 40; 
+            let ratio = targetWidth / footImg.width;
+            let drawHeight = footImg.height * ratio;
+            let x = 20;
+            let y = canvas.height - drawHeight - 20;
+            ctx.drawImage(footImg, x, y, targetWidth, drawHeight);
+            footerY = y; 
+          } else {
+            ctx.fillStyle = "#e2e8f0"; ctx.fillRect(0, 600, canvas.width, 200);
+            ctx.fillStyle = "#64748b"; ctx.font = "20px sans-serif"; ctx.textAlign="center";
+            ctx.fillText("無下方圖片", canvas.width/2, 700);
+            footerY = 600;
           }
-          div.Section1 { page: Section1; }
-        </style>
-        <!--[if gte mso 9]>
-        <xml>
-          <w:WordDocument>
-            <w:View>Print</w:View>
-            <w:Zoom>100</w:Zoom>
-            <w:DoNotOptimizeForBrowser/>
-          </w:WordDocument>
-        </xml>
-        <![endif]-->
-      </head>
-      <body>
-        <div class="Section1">
-          ${rowsHtml}
-        </div>
-      </body>
-      </html>
-    `;
 
-    const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-    showMessage(`✅ Word 檔案已開始下載：${filename}`);
-  };
+          ctx.fillStyle = "#000000";
+          ctx.textAlign = "left";
+          ctx.font = `16px "${fontName}", BiauKai, sans-serif`;
+          ctx.fillText(dateText, 40, footerY - 10 + parseInt(dateOffsetY || 0, 10));
 
-  const addStudent = async () => {
-    if (!newStudentName.trim() || !user || !db) return;
-    try {
-      const studentsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'students');
-      await addDoc(studentsRef, { name: newStudentName, cards: [], createdAt: Date.now() });
-      setNewStudentName('');
-      showMessage('✅ 學生已新增至雲端！');
-    } catch (e) {
-      showMessage('❌ 新增學生失敗');
-    }
-  };
+          ctx.textAlign = "center";
+          let fontSize = 45;
+          ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
+          
+          let maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
+          while (maxWidth > 380 && fontSize > 20) {
+            fontSize -= 2;
+            ctx.font = `bold ${fontSize}px "${fontName}", BiauKai, sans-serif`;
+            maxWidth = lines.length > 0 ? Math.max(...lines.map(l => ctx.measureText(l).width)) : 0;
+          }
 
-  const removeStudent = async (id) => {
-    if (!user || !db) return;
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'students', id));
-      setSelectedStudentIds(prev => prev.filter(sid => sid !== id));
-      showMessage('✅ 學生已刪除');
-    } catch (e) {
-      showMessage('❌ 刪除學生失敗');
-    }
-  };
+          let lineHeight = fontSize + 15;
+          let centerY = headerHeight + (footerY - headerHeight) / 2;
+          let startY = centerY - ((lines.length - 1) * lineHeight) / 2 + (fontSize / 3); 
 
-  const distributeCard = async (cardObj) => {
-    if (selectedStudentIds.length === 0) {
-      showMessage('⚠️ 請先從右側名單勾選要發送的學生！');
-      return;
-    }
-    if (!user || !db) return;
-    
-    try {
-      const promises = selectedStudentIds.map(async (studentId) => {
-        const student = students.find(s => s.id === studentId);
-        if (student) {
-          const studentDoc = doc(db, 'artifacts', appId, 'users', user.uid, 'students', studentId);
-          await updateDoc(studentDoc, {
-            cards: [cardObj, ...(student.cards || [])]
+          lines.forEach((line, index) => {
+            ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
+          });
+
+          newCards.push({
+            dataUrl: canvas.toDataURL('image/jpeg', 0.8),
+            category: seg.category,
+            backpackName: dateText.trim() || '預設背包'
           });
         }
-      });
-      await Promise.all(promises);
-      showMessage(`✅ 已成功派發 [${cardObj.category || '預設'}] 卡片給 ${selectedStudentIds.length} 位學生！`);
-    } catch (e) {
-      showMessage('❌ 派發卡片失敗，請檢查網路連線');
-    }
-  };
 
-  const toggleStudentSelection = (id) => {
-    setSelectedStudentIds(prev => prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]);
-  };
-  
-  const toggleAllStudents = () => {
-    if (selectedStudentIds.length === students.length) setSelectedStudentIds([]);
-    else setSelectedStudentIds(students.map(s => s.id));
-  };
+        setStagedCards(prev => [...newCards, ...prev]);
+        showMessage(`✅ 成功生成 ${newCards.length} 張卡片！`);
+      };
 
-  const clearStagedCard = (index) => {
-    setStagedCards(prev => prev.filter((_, i) => i !== index));
-  };
+      const exportCardsToWord = (cardsArray, filename) => {
+        if (cardsArray.length === 0) {
+          alert('⚠️ 目前沒有卡片可以下載喔！');
+          return;
+        }
 
-  return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col items-center">
-      {message && (
-        <div className="fixed top-5 z-50 bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg transition-all animate-bounce">
-          {message}
-        </div>
-      )}
-
-      {/* 頂部導覽列 */}
-      <header className="w-full bg-white shadow-sm flex items-center justify-between px-6 py-4 max-w-7xl mt-4 rounded-xl border border-slate-200">
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-blue-800 flex items-center gap-2">
-            <Gem className="text-blue-500" size={28} /> 數位技能卡系統 
-          </h1>
-          <span className="text-xs text-green-600 font-bold ml-10 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 雲端儲存已連線
-          </span>
-        </div>
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-          <button 
-            onClick={() => setActiveTab('teacher')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium transition-colors ${activeTab === 'teacher' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Users size={18} /> 教師中心
-          </button>
-          <button 
-            onClick={() => setActiveTab('student')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium transition-colors ${activeTab === 'student' ? 'bg-white shadow-sm text-green-700' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Backpack size={18} /> 學生背包
-          </button>
-        </div>
-      </header>
-
-      {/* ==================== 教師中心視圖 ==================== */}
-      {activeTab === 'teacher' && (
-        <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-6 mt-6 pb-12 px-4">
+        let rowsHtml = '';
+        for (let p = 0; p < cardsArray.length; p += 10) {
+          rowsHtml += '<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 0 auto; table-layout: fixed; width: 765pt;">';
+          for (let r = 0; r < 2; r++) {
+            rowsHtml += '<tr style="height: 255pt;">'; 
+            for (let c = 0; c < 5; c++) {
+              const idx = p + r * 5 + c;
+              const cardObj = cardsArray[idx];
+              if (cardObj) {
+                const cardSrc = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
+                rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc; text-align: center; vertical-align: middle;">
+                               <img src="${cardSrc}" width="204" height="340" style="width: 153pt; height: 255pt;" />
+                             </td>`;
+              } else {
+                rowsHtml += `<td style="width: 153pt; height: 255pt; padding: 0; margin: 0; border: 1pt dashed #cccccc;"></td>`;
+              }
+            }
+            rowsHtml += '</tr>';
+          }
+          rowsHtml += '</table>';
           
-          {/* ★ 左側：卡片生成器 ★ */}
-          <section 
-            className="w-full lg:w-[38%] bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col relative"
-            style={{ height: "calc(100vh - 120px)", minHeight: "750px" }}
-          >
-            <h2 className="text-lg font-bold p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2 shrink-0 rounded-t-xl text-blue-800">
-              <Plus size={20} className="text-blue-500" /> 卡片編輯區
-            </h2>
-            
-            <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-slate-50/50">
-              
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
-                <h3 className="font-bold text-slate-700 text-sm mb-2 border-b pb-2 flex items-center gap-2">
-                  <Upload size={16} className="text-slate-500" /> 1. 版面素材上傳
-                </h3>
-                <div>
-                  <label className="block text-xs font-bold mb-1 text-slate-600">上方圖片 (Header)</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setHeadImgUrl)} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1 text-slate-600">下方圖片 (Footer)</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setFootImgUrl)} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold mb-1 text-slate-600">自訂字型檔 (可選)</label>
-                  <input type="file" accept=".ttf,.woff,.woff2,.otf" onChange={handleFontUpload} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
-                </div>
-              </div>
+          if (p + 10 < cardsArray.length) {
+            rowsHtml += '<br style="page-break-before: always; mso-special-character: line-break;" clear="all" />';
+          }
+        }
 
-              <div className="border border-indigo-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                <button 
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 p-3 text-sm font-bold flex items-center justify-between transition-colors"
-                >
-                  <span className="flex items-center gap-2"><Settings size={16}/> 設定學生背包背面圖案 (選填)</span>
-                  {showSettings ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                </button>
-                {showSettings && (
-                  <div className="p-3 grid grid-cols-4 gap-2 bg-indigo-50/20">
-                    {categoriesList.map(cat => (
-                      <label key={cat} className="cursor-pointer border border-indigo-200 rounded-md p-1 flex flex-col items-center justify-center bg-white hover:bg-indigo-50 relative h-16 shadow-sm group">
-                        {categoryImages[cat] ? (
-                          <img src={categoryImages[cat]} alt={cat} className="h-full object-contain" />
-                        ) : (
-                          <span className="text-xs font-bold text-slate-400 group-hover:text-indigo-500">{cat}</span>
-                        )}
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleCategoryUpload(cat, e)} />
-                        <div className="absolute inset-0 bg-black/60 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">上傳</div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
-                <h3 className="font-bold text-blue-800 text-sm mb-3 border-b border-blue-100 pb-2 flex items-center gap-2">
-                  <FileText size={16} /> 2. 卡片內容輸入
-                </h3>
-                
-                <label className="block text-xs font-bold mb-1 text-blue-700">技能文字與分類 (一行代表一張卡片)</label>
-                <p className="text-[11px] text-blue-600 mb-2 leading-relaxed">
-                  💡 <strong>每按一次 Enter 換行，就會產生一張新卡片！</strong><br/>
-                  💡 卡片內的文字若太長，請用<strong>「空白鍵」</strong>將句子切開，字體就會自動放大並維持置中美觀！
-                </p>
-                <textarea 
-                  value={skillsText} 
-                  onChange={(e) => setSkillsText(e.target.value)}
-                  className="w-full p-2 border rounded-md h-32 text-sm resize-none focus:ring-2 focus:ring-blue-400 custom-scrollbar"
-                  placeholder="範例：&#10;(食)我能 在文青麵店 品嘗美食&#10;(衣)我會 自己洗碗"
-                ></textarea>
-
-                <label className="block text-xs font-bold mb-1 mt-3 text-blue-700">底部日期與單位 (將成為背包名稱)</label>
-                <input 
-                  type="text" 
-                  value={dateText} 
-                  onChange={(e) => setDateText(e.target.value)}
-                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-400"
-                />
-              </div>
-
-              <div className="border border-slate-300 rounded-lg bg-slate-200 p-4 flex flex-col items-center shadow-inner relative overflow-hidden">
-                <h3 className="text-xs font-bold text-slate-500 mb-3 w-full text-center flex items-center justify-center gap-2">
-                  <Eye size={14} /> 3. 即時預覽與微調
-                </h3>
-                
-                <div className="flex items-end justify-between w-full px-1 xl:px-4 gap-2">
-                  <div className="flex flex-col items-center justify-center bg-white/90 py-2 px-1 rounded-full shadow-sm border border-slate-300 z-10 mb-2 shrink-0 w-[26px]" title="若日期沒有對齊圖片，可上下拖曳微調位置">
-                    <span className="text-[8px] font-bold text-slate-500 mb-1 leading-none">上</span>
-                    <div className="relative h-[80px] w-3 flex items-center justify-center my-1">
-                      <input 
-                        type="range" 
-                        min="-100" 
-                        max="100" 
-                        value={-dateOffsetY} 
-                        onChange={(e) => setDateOffsetY(-parseInt(e.target.value, 10))}
-                        className="absolute w-[80px] h-[3px] accent-blue-600 cursor-ns-resize origin-center -rotate-90 bg-slate-300 rounded-lg appearance-none"
-                        style={{ outline: "none" }}
-                      />
-                    </div>
-                    <span className="text-[8px] font-bold text-slate-500 mt-1 leading-none">下</span>
-                    <div className="flex flex-col items-center mt-1.5">
-                       <span className="text-[8px] font-bold text-blue-800 leading-tight">微</span>
-                       <span className="text-[8px] font-bold text-blue-800 leading-tight">調</span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 flex justify-center items-center">
-                    <canvas 
-                      ref={previewCanvasRef} 
-                      width="450" 
-                      height="800" 
-                      className="w-full max-w-[260px] xl:max-w-[320px] h-auto border border-slate-300 shadow-md rounded bg-white transition-all duration-300"
-                    />
-                  </div>
-
-                  <div className="w-[26px] shrink-0"></div>
-                </div>
-              </div>
+        const htmlContent = `
+          <html xmlns:v="urn:schemas-microsoft-com:vml"
+                xmlns:o="urn:schemas-microsoft-com:office:office"
+                xmlns:w="urn:schemas-microsoft-com:office:word"
+                xmlns:m="http://schemas.microsoft.com/office/2004/12/omml"
+                xmlns="http://www.w3.org/TR/REC-html40">
+          <head>
+            <meta charset="utf-8">
+            <style>
+              @page {
+                size: 841.9pt 595.3pt;
+                mso-page-orientation: landscape;
+                margin: 36.0pt 36.0pt 36.0pt 36.0pt;
+              }
+              @page Section1 {
+                size: 841.9pt 595.3pt;
+                mso-page-orientation: landscape;
+                margin: 36.0pt 36.0pt 36.0pt 36.0pt;
+              }
+              div.Section1 { page: Section1; }
+            </style>
+            <!--[if gte mso 9]>
+            <xml>
+              <w:WordDocument>
+                <w:View>Print</w:View>
+                <w:Zoom>100</w:Zoom>
+                <w:DoNotOptimizeForBrowser/>
+              </w:WordDocument>
+            </xml>
+            <![endif]-->
+          </head>
+          <body>
+            <div class="Section1">
+              ${rowsHtml}
             </div>
+          </body>
+          </html>
+        `;
 
-            <div className="p-4 border-t border-slate-200 bg-white shrink-0 rounded-b-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+        const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+        showMessage(`✅ Word 檔案已開始下載：${filename}`);
+      };
+
+      const addStudent = async () => {
+        if (!newStudentName.trim() || !user || !db) return;
+        try {
+          const studentsRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('students');
+          await studentsRef.add({ name: newStudentName, cards: [], createdAt: Date.now() });
+          setNewStudentName('');
+          showMessage('✅ 學生已新增至雲端！');
+        } catch (e) {
+          showMessage('❌ 新增學生失敗');
+        }
+      };
+
+      const removeStudent = async (id) => {
+        if (!user || !db) return;
+        try {
+          await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('students').doc(id).delete();
+          setSelectedStudentIds(prev => prev.filter(sid => sid !== id));
+          showMessage('✅ 學生已刪除');
+        } catch (e) {
+          showMessage('❌ 刪除學生失敗');
+        }
+      };
+
+      const distributeCard = async (cardObj) => {
+        if (selectedStudentIds.length === 0) {
+          showMessage('⚠️ 請先從右側名單勾選要發送的學生！');
+          return;
+        }
+        if (!user || !db) return;
+        
+        try {
+          const promises = selectedStudentIds.map(async (studentId) => {
+            const student = students.find(s => s.id === studentId);
+            if (student) {
+              const studentDoc = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('students').doc(studentId);
+              await studentDoc.update({
+                cards: [cardObj, ...(student.cards || [])]
+              });
+            }
+          });
+          await Promise.all(promises);
+          showMessage(`✅ 已成功派發 [${cardObj.category || '預設'}] 卡片給 ${selectedStudentIds.length} 位學生！`);
+        } catch (e) {
+          showMessage('❌ 派發卡片失敗，請檢查網路連線');
+        }
+      };
+
+      const toggleStudentSelection = (id) => {
+        setSelectedStudentIds(prev => prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]);
+      };
+      
+      const toggleAllStudents = () => {
+        if (selectedStudentIds.length === students.length) setSelectedStudentIds([]);
+        else setSelectedStudentIds(students.map(s => s.id));
+      };
+
+      const clearStagedCard = (index) => {
+        setStagedCards(prev => prev.filter((_, i) => i !== index));
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col items-center">
+          {message && (
+            <div className="fixed top-5 z-50 bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg transition-all animate-bounce">
+              {message}
+            </div>
+          )}
+
+          {/* 頂部導覽列 */}
+          <header className="w-full bg-white shadow-sm flex items-center justify-between px-6 py-4 max-w-7xl mt-4 rounded-xl border border-slate-200">
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold text-blue-800 flex items-center gap-2">
+                <i className="fa-solid fa-gem text-blue-500 text-3xl"></i> 數位技能卡系統 
+              </h1>
+              <span className="text-xs text-green-600 font-bold ml-10 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 雲端儲存已連線
+              </span>
+            </div>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
               <button 
-                onClick={generateCards}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-3.5 rounded-lg shadow-md transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
+                onClick={() => setActiveTab('teacher')}
+                className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium transition-colors ${activeTab === 'teacher' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                <span className="text-xl">✨</span> 產生技能卡 (加入暫存區)
+                <i className="fa-solid fa-users"></i> 教師中心
+              </button>
+              <button 
+                onClick={() => setActiveTab('student')}
+                className={`flex items-center gap-2 px-6 py-2 rounded-md font-medium transition-colors ${activeTab === 'student' ? 'bg-white shadow-sm text-green-700' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <i className="fa-solid fa-briefcase"></i> 學生背包
               </button>
             </div>
-          </section>
+          </header>
 
-          {/* 右側：學生名單與派發區 */}
-          <section className="w-full lg:w-[62%] flex flex-col gap-6">
-            
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2">
-                <Users className="text-indigo-500" size={20} /> 雲端學生名單
-              </h2>
-              <div className="flex gap-2 mb-4">
-                <input 
-                  type="text" 
-                  value={newStudentName}
-                  onChange={(e) => setNewStudentName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addStudent()}
-                  placeholder="輸入學生姓名..."
-                  className="flex-1 p-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                  disabled={!user}
-                />
-                <button onClick={addStudent} disabled={!user} className="bg-indigo-500 disabled:bg-slate-300 text-white px-4 py-2 rounded-md hover:bg-indigo-600 text-sm font-semibold transition-colors shadow-sm">
-                  新增學生
-                </button>
-              </div>
-
-              <div className="border rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-slate-50 custom-scrollbar">
-                <div className="flex items-center px-4 py-2 border-b bg-white sticky top-0 z-10">
-                  <button onClick={toggleAllStudents} className="mr-3 text-slate-500 hover:text-indigo-600">
-                    {selectedStudentIds.length === students.length && students.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                  </button>
-                  <span className="text-sm font-semibold text-slate-600 flex-1">全選 / 學生姓名 ({students.length}人)</span>
-                  <span className="text-sm font-semibold text-slate-600">已獲卡片數</span>
-                </div>
-                {students.map(student => (
-                  <div key={student.id} className={`flex items-center px-4 py-2 border-b last:border-0 hover:bg-indigo-50 transition-colors ${selectedStudentIds.includes(student.id) ? 'bg-indigo-50/50' : ''}`}>
-                    <button onClick={() => toggleStudentSelection(student.id)} className="mr-3 text-indigo-500">
-                      {selectedStudentIds.includes(student.id) ? <CheckSquare size={18} /> : <Square size={18} className="text-slate-300" />}
-                    </button>
-                    <span className="flex-1 text-sm text-slate-700 font-medium">{student.name}</span>
-                    <span className="text-xs bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full mr-4 font-bold">{(student.cards || []).length} 張</span>
-                    <button onClick={() => removeStudent(student.id)} className="text-slate-400 hover:text-red-500 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-                {!user && <div className="p-4 text-center text-sm text-slate-400">正在連線雲端資料庫...</div>}
-                {user && students.length === 0 && <div className="p-4 text-center text-sm text-slate-400">尚無學生資料，請從上方新增</div>}
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col">
-              <div className="flex justify-between items-end border-b pb-2 mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <FileText className="text-green-500" size={20} /> 卡片暫存區 ({stagedCards.length} 張)
+          {/* ==================== 教師中心視圖 ==================== */}
+          {activeTab === 'teacher' && (
+            <main className="w-full max-w-7xl flex flex-col lg:flex-row gap-6 mt-6 pb-12 px-4">
+              
+              {/* ★ 左側：卡片生成器 ★ */}
+              <section 
+                className="w-full lg:w-[38%] bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col relative"
+                style={{ height: "calc(100vh - 120px)", minHeight: "750px" }}
+              >
+                <h2 className="text-lg font-bold p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2 shrink-0 rounded-t-xl text-blue-800">
+                  <i className="fa-solid fa-plus text-blue-500"></i> 卡片編輯區
                 </h2>
-                <button 
-                  onClick={() => exportCardsToWord(stagedCards, '技能卡批量列印_A4橫向.doc')}
-                  className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-slate-700 transition-colors shadow-sm"
-                >
-                  <Download size={14} /> 下載 A4 橫式列印檔
-                </button>
-              </div>
-
-              {stagedCards.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-10 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg">
-                  <FileText size={48} className="mb-3 opacity-30" />
-                  <p className="font-bold text-slate-500">暫存區目前是空的</p>
-                  <p className="text-sm mt-1">請在左側點選最下方的「產生技能卡」即可在此預覽與下載</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto max-h-[500px] p-2 custom-scrollbar">
-                  {stagedCards.map((cardObj, index) => {
-                     const cardUrl = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
-                     const category = typeof cardObj === 'string' ? '預設' : (cardObj.category || '預設');
-                     const packName = typeof cardObj === 'string' ? '未分類' : (cardObj.backpackName || '未分類');
-                     return (
-                      <div key={index} className="bg-slate-50 border rounded-lg p-3 flex flex-col items-center shadow-sm relative group">
-                        <button 
-                          onClick={() => clearStagedCard(index)} 
-                          className="absolute -top-2 -right-2 bg-red-100 text-red-600 w-6 h-6 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm border border-red-200 hover:bg-red-200"
-                          title="刪除此暫存卡片"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                        <div className="relative w-full mb-3">
-                           <span className="absolute top-0 left-0 bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-br-lg rounded-tl-sm shadow-sm font-bold z-10 flex flex-col gap-0.5">
-                              <span>{category}卡</span>
-                           </span>
-                           <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] px-2 py-0.5 rounded-bl-lg rounded-tr-sm shadow-sm z-10 max-w-[80px] truncate" title={`目標背包: ${packName}`}>
-                              🎒 {packName}
-                           </span>
-                           <img src={cardUrl} alt="生成的卡片" className="w-full h-auto border border-slate-200 object-contain bg-white shadow-sm" />
-                        </div>
-                        <button 
-                          onClick={() => distributeCard(cardObj)}
-                          className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-2 rounded font-medium text-xs transition-colors shadow-sm"
-                        >
-                          <Send size={12} /> 發送給選定學生
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-          </section>
-        </main>
-      )}
-
-      {/* ==================== 學生背包視圖 ==================== */}
-      {activeTab === 'student' && (
-        <main className="w-full max-w-6xl mt-6 pb-12 flex flex-col items-center px-4">
-          
-          <div className="w-full max-w-2xl bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">哈囉！要查看誰的背包呢？</h2>
-            <p className="text-slate-500 mb-6">選擇你的名字，看看老師發給了你哪些技能卡！</p>
-            
-            <select 
-              className="w-full md:w-2/3 p-3 text-lg border-2 border-indigo-200 rounded-lg text-center font-bold text-indigo-800 bg-indigo-50 outline-none focus:border-indigo-500 cursor-pointer shadow-sm"
-              value={viewingStudentId}
-              onChange={(e) => setViewingStudentId(e.target.value)}
-            >
-              <option value="" disabled>--- 請選擇學生姓名 ---</option>
-              {students.map(s => (
-                <option key={s.id} value={s.id}>{s.name} (收集了 {(s.cards || []).length} 張卡片)</option>
-              ))}
-            </select>
-          </div>
-
-          {viewingStudentId && (
-            <div className="w-full bg-amber-50 p-6 rounded-xl border border-amber-200 shadow-inner min-h-[400px]">
-              {(() => {
-                const student = students.find(s => s.id === viewingStudentId);
-                if (!student) return null;
-                const studentCards = student.cards || [];
                 
-                const groupedCards = studentCards.reduce((acc, card) => {
-                  const bName = (typeof card === 'string' ? '舊版未分類' : card.backpackName) || '舊版未分類';
-                  if (!acc[bName]) acc[bName] = [];
-                  acc[bName].push(card);
-                  return acc;
-                }, {});
-
-                return (
-                  <>
-                    <div className="flex flex-col sm:flex-row items-center justify-between mb-6 border-b border-amber-200 pb-4 gap-4">
-                      <h3 className="text-xl font-bold text-amber-900 flex items-center gap-2">
-                        <Gem className="text-amber-500" />
-                        {student.name} 的珍藏卡片
-                      </h3>
-                      
-                      <div className="flex items-center gap-3">
-                        <span className="bg-amber-500 text-white px-4 py-1.5 rounded-full font-bold shadow-sm">
-                          總計：{studentCards.length} 張
-                        </span>
-                        {studentCards.length > 0 && (
-                          <button 
-                            onClick={() => exportCardsToWord(studentCards, `${student.name}_技能卡收集冊.doc`)}
-                            className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-1.5 rounded-full font-bold shadow-sm flex items-center gap-2 transition-colors"
-                            title="下載Word檔，將收集到的卡片印出來！"
-                          >
-                            <Download size={14} /> 打包帶走
-                          </button>
-                        )}
-                      </div>
+                <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-slate-50/50">
+                  
+                  <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
+                    <h3 className="font-bold text-slate-700 text-sm mb-2 border-b pb-2 flex items-center gap-2">
+                      <i className="fa-solid fa-upload text-slate-500"></i> 1. 版面素材上傳
+                    </h3>
+                    <div>
+                      <label className="block text-xs font-bold mb-1 text-slate-600">上方圖片 (Header)</label>
+                      <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setHeadImgUrl)} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1 text-slate-600">下方圖片 (Footer)</label>
+                      <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setFootImgUrl)} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold mb-1 text-slate-600">自訂字型檔 (可選)</label>
+                      <input type="file" accept=".ttf,.woff,.woff2,.otf" onChange={handleFontUpload} className="block w-full text-xs border bg-slate-50 p-1.5 rounded focus:ring-2 focus:ring-blue-400"/>
+                    </div>
+                  </div>
 
-                    {Object.keys(groupedCards).length === 0 ? (
-                      <div className="flex flex-col items-center justify-center text-amber-700 py-20 opacity-60">
-                        <Backpack size={64} className="mb-4" />
-                        <p className="text-lg font-bold">目前背包空空的喔！</p>
-                        <p>趕快請老師發卡片給你吧！</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-8">
-                        {Object.entries(groupedCards).map(([bName, cardsInPack], packIdx) => (
-                          <div key={packIdx} className="bg-white p-5 rounded-2xl border-2 border-amber-200 shadow-sm">
-                            <div className="flex items-center justify-between mb-5 border-b-2 border-amber-100 pb-3">
-                              <h4 className="text-lg font-bold text-amber-800 flex items-center gap-2">
-                                <Backpack className="text-amber-500" size={24} />
-                                {bName}
-                              </h4>
-                              <span className="text-sm font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-full">
-                                收集了 {cardsInPack.length} 張
-                              </span>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 p-2">
-                              {cardsInPack.map((card, idx) => (
-                                <FlipCard 
-                                  key={idx} 
-                                  card={card} 
-                                  idx={idx} 
-                                  total={cardsInPack.length} 
-                                  categoryImages={categoryImages}
-                                />
-                              ))}
-                            </div>
-                          </div>
+                  <div className="border border-indigo-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                    <button 
+                      onClick={() => setShowSettings(!showSettings)}
+                      className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 p-3 text-sm font-bold flex items-center justify-between transition-colors"
+                    >
+                      <span className="flex items-center gap-2"><i className="fa-solid fa-gear"></i> 設定學生背包背面圖案 (選填)</span>
+                      <i className={`fa-solid fa-chevron-${showSettings ? 'up' : 'down'}`}></i>
+                    </button>
+                    {showSettings && (
+                      <div className="p-3 grid grid-cols-4 gap-2 bg-indigo-50/20">
+                        {categoriesList.map(cat => (
+                          <label key={cat} className="cursor-pointer border border-indigo-200 rounded-md p-1 flex flex-col items-center justify-center bg-white hover:bg-indigo-50 relative h-16 shadow-sm group">
+                            {categoryImages[cat] ? (
+                              <img src={categoryImages[cat]} alt={cat} className="h-full object-contain" />
+                            ) : (
+                              <span className="text-xs font-bold text-slate-400 group-hover:text-indigo-500">{cat}</span>
+                            )}
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleCategoryUpload(cat, e)} />
+                            <div className="absolute inset-0 bg-black/60 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">上傳</div>
+                          </label>
                         ))}
                       </div>
                     )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-        </main>
-      )}
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                    <h3 className="font-bold text-blue-800 text-sm mb-3 border-b border-blue-100 pb-2 flex items-center gap-2">
+                      <i className="fa-solid fa-file-lines"></i> 2. 卡片內容輸入
+                    </h3>
+                    
+                    <label className="block text-xs font-bold mb-1 text-blue-700">技能文字與分類 (一行代表一張卡片)</label>
+                    <p className="text-[11px] text-blue-600 mb-2 leading-relaxed">
+                      💡 <strong>每按一次 Enter 換行，就會產生一張新卡片！</strong><br/>
+                      💡 若句子太長，請用<strong>「空白鍵」</strong>將文字切開，字體會自動放大並維持置中！
+                    </p>
+                    <textarea 
+                      value={skillsText} 
+                      onChange={(e) => setSkillsText(e.target.value)}
+                      className="w-full p-2 border rounded-md h-32 text-sm resize-none focus:ring-2 focus:ring-blue-400 custom-scrollbar"
+                      placeholder="範例：&#10;(食)我能 在文青麵店 品嘗美食&#10;(衣)我會 自己洗碗"
+                    ></textarea>
 
-    </div>
-  );
-}
+                    <label className="block text-xs font-bold mb-1 mt-3 text-blue-700">底部日期與單位 (將成為背包名稱)</label>
+                    <input 
+                      type="text" 
+                      value={dateText} 
+                      onChange={(e) => setDateText(e.target.value)}
+                      className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+
+                  <div className="border border-slate-300 rounded-lg bg-slate-200 p-4 flex flex-col items-center shadow-inner relative overflow-hidden">
+                    <h3 className="text-xs font-bold text-slate-500 mb-3 w-full text-center flex items-center justify-center gap-2">
+                      <i className="fa-solid fa-eye"></i> 3. 即時預覽與微調
+                    </h3>
+                    
+                    <div className="flex items-end justify-between w-full px-1 xl:px-4 gap-2">
+                      <div className="flex flex-col items-center justify-center bg-white/90 py-2 px-1 rounded-full shadow-sm border border-slate-300 z-10 mb-2 shrink-0 w-[26px]" title="若日期沒有對齊圖片，可上下拖曳微調位置">
+                        <span className="text-[8px] font-bold text-slate-500 mb-1 leading-none">上</span>
+                        <div className="relative h-[80px] w-3 flex items-center justify-center my-1">
+                          <input 
+                            type="range" 
+                            min="-100" 
+                            max="100" 
+                            value={-dateOffsetY} 
+                            onChange={(e) => setDateOffsetY(-parseInt(e.target.value, 10))}
+                            className="absolute w-[80px] h-[3px] accent-blue-600 cursor-ns-resize origin-center -rotate-90 bg-slate-300 rounded-lg appearance-none"
+                            style={{ outline: "none" }}
+                          />
+                        </div>
+                        <span className="text-[8px] font-bold text-slate-500 mt-1 leading-none">下</span>
+                        <div className="flex flex-col items-center mt-1.5">
+                           <span className="text-[8px] font-bold text-blue-800 leading-tight">微</span>
+                           <span className="text-[8px] font-bold text-blue-800 leading-tight">調</span>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex justify-center items-center">
+                        <canvas 
+                          ref={previewCanvasRef} 
+                          width="450" 
+                          height="800" 
+                          className="w-full max-w-[260px] xl:max-w-[320px] h-auto border border-slate-300 shadow-md rounded bg-white transition-all duration-300"
+                        />
+                      </div>
+
+                      <div className="w-[26px] shrink-0"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border-t border-slate-200 bg-white shrink-0 rounded-b-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                  <button 
+                    onClick={generateCards}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-3.5 rounded-lg shadow-md transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
+                  >
+                    <span className="text-xl">✨</span> 產生技能卡 (加入暫存區)
+                  </button>
+                </div>
+              </section>
+
+              {/* 右側：學生名單與派發區 */}
+              <section className="w-full lg:w-[62%] flex flex-col gap-6">
+                
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2">
+                    <i className="fa-solid fa-users text-indigo-500"></i> 雲端學生名單
+                  </h2>
+                  <div className="flex gap-2 mb-4">
+                    <input 
+                      type="text" 
+                      value={newStudentName}
+                      onChange={(e) => setNewStudentName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addStudent()}
+                      placeholder="輸入學生姓名..."
+                      className="flex-1 p-2 border rounded-md text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                      disabled={!user}
+                    />
+                    <button onClick={addStudent} disabled={!user} className="bg-indigo-500 disabled:bg-slate-300 text-white px-4 py-2 rounded-md hover:bg-indigo-600 text-sm font-semibold transition-colors shadow-sm">
+                      新增學生
+                    </button>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-slate-50 custom-scrollbar">
+                    <div className="flex items-center px-4 py-2 border-b bg-white sticky top-0 z-10">
+                      <button onClick={toggleAllStudents} className="mr-3 text-slate-500 hover:text-indigo-600">
+                        {selectedStudentIds.length === students.length && students.length > 0 ? <i className="fa-solid fa-square-check text-lg"></i> : <i className="fa-regular fa-square text-lg"></i>}
+                      </button>
+                      <span className="text-sm font-semibold text-slate-600 flex-1">全選 / 學生姓名 ({students.length}人)</span>
+                      <span className="text-sm font-semibold text-slate-600">已獲卡片數</span>
+                    </div>
+                    {students.map(student => (
+                      <div key={student.id} className={`flex items-center px-4 py-2 border-b last:border-0 hover:bg-indigo-50 transition-colors ${selectedStudentIds.includes(student.id) ? 'bg-indigo-50/50' : ''}`}>
+                        <button onClick={() => toggleStudentSelection(student.id)} className="mr-3 text-indigo-500">
+                          {selectedStudentIds.includes(student.id) ? <i className="fa-solid fa-square-check text-lg"></i> : <i className="fa-regular fa-square text-lg text-slate-300"></i>}
+                        </button>
+                        <span className="flex-1 text-sm text-slate-700 font-medium">{student.name}</span>
+                        <span className="text-xs bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-full mr-4 font-bold">{(student.cards || []).length} 張</span>
+                        <button onClick={() => removeStudent(student.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    ))}
+                    {!user && <div className="p-4 text-center text-sm text-slate-400">正在連線雲端資料庫...</div>}
+                    {user && students.length === 0 && <div className="p-4 text-center text-sm text-slate-400">尚無學生資料，請從上方新增</div>}
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col">
+                  <div className="flex justify-between items-end border-b pb-2 mb-4">
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                      <i className="fa-solid fa-file-lines text-green-500"></i> 卡片暫存區 ({stagedCards.length} 張)
+                    </h2>
+                    <button 
+                      onClick={() => exportCardsToWord(stagedCards, '技能卡批量列印_A4橫向.doc')}
+                      className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-slate-700 transition-colors shadow-sm"
+                    >
+                      <i className="fa-solid fa-download"></i> 下載 A4 橫式列印檔
+                    </button>
+                  </div>
+
+                  {stagedCards.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-10 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg">
+                      <i className="fa-solid fa-file-lines text-5xl mb-3 opacity-30"></i>
+                      <p className="font-bold text-slate-500">暫存區目前是空的</p>
+                      <p className="text-sm mt-1">請在左側點選最下方的「產生技能卡」即可在此預覽與下載</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto max-h-[500px] p-2 custom-scrollbar">
+                      {stagedCards.map((cardObj, index) => {
+                         const cardUrl = typeof cardObj === 'string' ? cardObj : cardObj.dataUrl;
+                         const category = typeof cardObj === 'string' ? '預設' : (cardObj.category || '預設');
+                         const packName = typeof cardObj === 'string' ? '未分類' : (cardObj.backpackName || '未分類');
+                         return (
+                          <div key={index} className="bg-slate-50 border rounded-lg p-3 flex flex-col items-center shadow-sm relative group">
+                            <button 
+                              onClick={() => clearStagedCard(index)} 
+                              className="absolute -top-2 -right-2 bg-red-100 text-red-600 w-6 h-6 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm border border-red-200 hover:bg-red-200"
+                              title="刪除此暫存卡片"
+                            >
+                              <i className="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                            <div className="relative w-full mb-3">
+                               <span className="absolute top-0 left-0 bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-br-lg rounded-tl-sm shadow-sm font-bold z-10 flex flex-col gap-0.5">
+                                  <span>{category}卡</span>
+                               </span>
+                               <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] px-2 py-0.5 rounded-bl-lg rounded-tr-sm shadow-sm z-10 max-w-[80px] truncate" title={`目標背包: ${packName}`}>
+                                  🎒 {packName}
+                               </span>
+                               <img src={cardUrl} alt="生成的卡片" className="w-full h-auto border border-slate-200 object-contain bg-white shadow-sm" />
+                            </div>
+                            <button 
+                              onClick={() => distributeCard(cardObj)}
+                              className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-2 rounded font-medium text-xs transition-colors shadow-sm"
+                            >
+                              <i className="fa-solid fa-paper-plane"></i> 發送給選定學生
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+              </section>
+            </main>
+          )}
+
+          {/* ==================== 學生背包視圖 ==================== */}
+          {activeTab === 'student' && (
+            <main className="w-full max-w-6xl mt-6 pb-12 flex flex-col items-center px-4">
+              
+              <div className="w-full max-w-2xl bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center mb-6">
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">哈囉！要查看誰的背包呢？</h2>
+                <p className="text-slate-500 mb-6">選擇你的名字，看看老師發給了你哪些技能卡！</p>
+                
+                <select 
+                  className="w-full md:w-2/3 p-3 text-lg border-2 border-indigo-200 rounded-lg text-center font-bold text-indigo-800 bg-indigo-50 outline-none focus:border-indigo-500 cursor-pointer shadow-sm"
+                  value={viewingStudentId}
+                  onChange={(e) => setViewingStudentId(e.target.value)}
+                >
+                  <option value="" disabled>--- 請選擇學生姓名 ---</option>
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} (收集了 {(s.cards || []).length} 張卡片)</option>
+                  ))}
+                </select>
+              </div>
+
+              {viewingStudentId && (
+                <div className="w-full bg-amber-50 p-6 rounded-xl border border-amber-200 shadow-inner min-h-[400px]">
+                  {(() => {
+                    const student = students.find(s => s.id === viewingStudentId);
+                    if (!student) return null;
+                    const studentCards = student.cards || [];
+                    
+                    const groupedCards = studentCards.reduce((acc, card) => {
+                      const bName = (typeof card === 'string' ? '舊版未分類' : card.backpackName) || '舊版未分類';
+                      if (!acc[bName]) acc[bName] = [];
+                      acc[bName].push(card);
+                      return acc;
+                    }, {});
+
+                    return (
+                      <>
+                        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 border-b border-amber-200 pb-4 gap-4">
+                          <h3 className="text-xl font-bold text-amber-900 flex items-center gap-2">
+                            <i className="fa-solid fa-gem text-amber-500"></i>
+                            {student.name} 的珍藏卡片
+                          </h3>
+                          
+                          <div className="flex items-center gap-3">
+                            <span className="bg-amber-500 text-white px-4 py-1.5 rounded-full font-bold shadow-sm">
+                              總計：{studentCards.length} 張
+                            </span>
+                            {studentCards.length > 0 && (
+                              <button 
+                                onClick={() => exportCardsToWord(studentCards, `${student.name}_技能卡收集冊.doc`)}
+                                className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-1.5 rounded-full font-bold shadow-sm flex items-center gap-2 transition-colors"
+                                title="下載Word檔，將收集到的卡片印出來！"
+                              >
+                                <i className="fa-solid fa-download"></i> 打包帶走
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {Object.keys(groupedCards).length === 0 ? (
+                          <div className="flex flex-col items-center justify-center text-amber-700 py-20 opacity-60">
+                            <i className="fa-solid fa-briefcase text-6xl mb-4"></i>
+                            <p className="text-lg font-bold">目前背包空空的喔！</p>
+                            <p>趕快請老師發卡片給你吧！</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-8">
+                            {Object.entries(groupedCards).map(([bName, cardsInPack], packIdx) => (
+                              <div key={packIdx} className="bg-white p-5 rounded-2xl border-2 border-amber-200 shadow-sm">
+                                <div className="flex items-center justify-between mb-5 border-b-2 border-amber-100 pb-3">
+                                  <h4 className="text-lg font-bold text-amber-800 flex items-center gap-2">
+                                    <i className="fa-solid fa-briefcase text-amber-500"></i>
+                                    {bName}
+                                  </h4>
+                                  <span className="text-sm font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-full">
+                                    收集了 {cardsInPack.length} 張
+                                  </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 p-2">
+                                  {cardsInPack.map((card, idx) => (
+                                    <FlipCard 
+                                      key={idx} 
+                                      card={card} 
+                                      idx={idx} 
+                                      total={cardsInPack.length} 
+                                      categoryImages={categoryImages}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+             </div>
+           )}
+         </main>
+       )}
+
+     </div>
+   );
+ }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
