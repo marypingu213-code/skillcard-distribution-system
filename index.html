@@ -5,20 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>數位技能卡派發系統</title>
 
-  <!-- 載入 Tailwind CSS (排版與美化) -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 載入 FontAwesome 圖示 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- 載入 React 核心函式庫 -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   
-  <!-- 載入 Babel (讓瀏覽器能直接解析 JSX 語法) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- 載入 Firebase (v8 相容版本，最適合 GitHub Pages 單檔使用) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -37,10 +32,8 @@
 </head>
 <body class="bg-slate-100 font-sans text-slate-800">
   
-  <!-- React 應用程式的掛載點 -->
   <div id="root"></div>
 
-  <!-- React 程式碼開始 -->
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
@@ -501,19 +494,10 @@
               }
               div.Section1 { page: Section1; }
             </style>
-            <!--[if gte mso 9]>
-            <xml>
-              <w:WordDocument>
-                <w:View>Print</w:View>
-                <w:Zoom>100</w:Zoom>
-                <w:DoNotOptimizeForBrowser/>
-              </w:WordDocument>
-            </xml>
-            <![endif]-->
-          </head>
+            </head>
           <body>
             <div class="Section1">
-              ${rowsHtml}
+              \${rowsHtml}
             </div>
           </body>
           </html>
@@ -695,7 +679,7 @@
                       value={skillsText} 
                       onChange={(e) => setSkillsText(e.target.value)}
                       className="w-full p-2 border rounded-md h-32 text-sm resize-none focus:ring-2 focus:ring-blue-400 custom-scrollbar"
-                      placeholder="範例：&#10;(食)我能 在文青麵店 品嘗美食&#10;(衣)我會 自己洗碗"
+                      placeholder={"範例：\n(食)我能 在文青麵店 品嘗美食\n(衣)我會 自己洗碗"}
                     ></textarea>
 
                     <label className="block text-xs font-bold mb-1 mt-3 text-blue-700">底部日期與單位 (將成為背包名稱)</label>
@@ -840,10 +824,10 @@
                             </button>
                             <div className="relative w-full mb-3">
                                <span className="absolute top-0 left-0 bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-br-lg rounded-tl-sm shadow-sm font-bold z-10 flex flex-col gap-0.5">
-                                  <span>{category}卡</span>
+                                 <span>{category}卡</span>
                                </span>
                                <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] px-2 py-0.5 rounded-bl-lg rounded-tr-sm shadow-sm z-10 max-w-[80px] truncate" title={`目標背包: ${packName}`}>
-                                  🎒 {packName}
+                                 🎒 {packName}
                                </span>
                                <img src={cardUrl} alt="生成的卡片" className="w-full h-auto border border-slate-200 object-contain bg-white shadow-sm" />
                             </div>
@@ -960,14 +944,14 @@
                       </>
                     );
                   })()}
-             </div>
-           )}
-         </main>
-       )}
+               </div>
+             )}
+          </main>
+        )}
 
-     </div>
-   );
- }
+      </div>
+    );
+  }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
